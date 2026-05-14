@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -euo pipefail
 
 REPO="LuMiSxh/typos"
 INSTALL_DIR="${TYPOS_INSTALL_DIR:-$HOME/.local/bin}"

@@ -44,7 +44,7 @@ jobs:
             os: macos-latest
             artifact: typos-x86_64-apple-darwin
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-14
             artifact: typos-aarch64-apple-darwin
           - target: x86_64-pc-windows-msvc
             os: windows-latest
@@ -78,13 +78,22 @@ jobs:
         run: |
           Compress-Archive -Path "target/${{ matrix.target }}/release/typos.exe" -DestinationPath "${{ matrix.artifact }}.zip"
           (Get-FileHash "${{ matrix.artifact }}.zip" -Algorithm SHA256).Hash.ToLower() + "  ${{ matrix.artifact }}.zip" | Out-File -Encoding ascii "${{ matrix.artifact }}.zip.sha256"
-      - name: Upload artifact
+      - name: Upload artifact (unix)
+        if: runner.os != 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: |
             ${{ matrix.artifact }}.tar.gz
             ${{ matrix.artifact }}.tar.gz.sha256
+          if-no-files-found: error
+
+      - name: Upload artifact (windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
             ${{ matrix.artifact }}.zip
             ${{ matrix.artifact }}.zip.sha256
           if-no-files-found: error
@@ -99,7 +108,11 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      - name: Create git tag
+      - name: Configure git
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+      - name: Create git tag and push
         run: |
           git tag "${{ inputs.tag }}"
           git push origin "${{ inputs.tag }}"
@@ -109,5 +122,5 @@ jobs:
         run: |
           gh release create "${{ inputs.tag }}" \
             --title "${{ inputs.tag }}" \
-            --notes "Release ${{ inputs.tag }}" \
+            --generate-notes \
             artifacts/*
