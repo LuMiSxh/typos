@@ -3,6 +3,7 @@ mod config;
 mod error;
 mod font;
 mod markdown;
+mod render;
 mod template;
 mod world;
 
