@@ -35,6 +35,9 @@ pub enum TyposError {
 
     #[error("template file not found: {0}")]
     TemplateNotFound(PathBuf),
+
+    #[error("{0} conversion(s) failed")]
+    BatchFailed(usize),
 }
 
 pub type Result<T> = std::result::Result<T, TyposError>;
