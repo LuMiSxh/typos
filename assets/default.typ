@@ -47,8 +47,14 @@
 // Link styling
 #show link: set text(fill: typos-primary)
 
+// Heading sizes — toned down from Typst defaults
+#show heading.where(level: 1): set text(size: 15pt, weight: "semibold")
+#show heading.where(level: 2): set text(size: 13pt, weight: "semibold")
+#show heading.where(level: 3): set text(size: 11pt, weight: "bold")
+#show heading.where(level: 4): set text(size: 11pt, weight: "regular", style: "italic")
+
 // Heading keep-with-next (widow/orphan prevention)
-#show heading: it => block(breakable: false, above: 1.4em, below: 0.7em)[#it]
+#show heading: it => block(breakable: false, above: 1.2em, below: 0.5em)[#it]
 
 // Code block styling
 #show raw.where(block: true): it => block(

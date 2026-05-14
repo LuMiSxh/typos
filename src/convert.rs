@@ -117,5 +117,7 @@ fn output_path(
         format!("{}.pdf", stem)
     };
 
-    Ok(profile.output_dir.join(&filename))
+    let dir = profile.output_dir.as_deref()
+        .unwrap_or_else(|| md_path.parent().unwrap_or(Path::new(".")));
+    Ok(dir.join(&filename))
 }

@@ -75,7 +75,8 @@ pub struct ResolvedProfile {
     pub main_font: FontSpec,
     pub mono_font: FontSpec,
     pub template: Option<PathBuf>,
-    pub output_dir: PathBuf,
+    /// None = write PDF next to the source file; Some = explicit directory
+    pub output_dir: Option<PathBuf>,
     pub config_dir: PathBuf,
     pub top_margin: String,
     pub head_height: String,
@@ -126,8 +127,7 @@ impl TyposConfig {
             );
             let output_dir = p.output_dir.as_ref()
                 .or(self.defaults.output_dir.as_ref())
-                .map(|s| s.as_str())
-                .unwrap_or("output");
+                .map(|s| config_dir.join(s));
             let template = p.template.as_ref()
                 .or(self.defaults.template.as_ref())
                 .map(|t| config_dir.join(t));
@@ -147,7 +147,7 @@ impl TyposConfig {
                 main_font,
                 mono_font,
                 template,
-                output_dir: config_dir.join(output_dir),
+                output_dir,
                 config_dir: config_dir.to_path_buf(),
                 top_margin: p.top_margin.clone()
                     .or_else(|| self.defaults.top_margin.clone())

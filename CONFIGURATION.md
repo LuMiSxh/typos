@@ -14,7 +14,7 @@ Values in `[defaults]` apply to every profile unless the profile overrides them.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `output_dir` | path | `"output"` | Directory where PDFs are written, relative to `typos.toml` |
+| `output_dir` | path | _(next to source)_ | Directory where PDFs are written, relative to `typos.toml`. When omitted, each PDF is placed next to its source `.md` file. |
 | `main_font` | [FontSpec](#font-specification) | `"Arial"` | Body text font |
 | `mono_font` | [FontSpec](#font-specification) | `"Consolas"` | Monospace font for code blocks and inline code |
 | `template` | path | built-in | Path to a `.typ` file, relative to `typos.toml` |
@@ -41,7 +41,7 @@ Each `[[profiles]]` block defines one named profile. The `name` field is require
 | `main_font` | [FontSpec](#font-specification) | | Overrides `[defaults].main_font` for this profile. |
 | `mono_font` | [FontSpec](#font-specification) | | Overrides `[defaults].mono_font` for this profile. |
 | `template` | path | | Overrides `[defaults].template` for this profile. |
-| `output_dir` | path | | Overrides `[defaults].output_dir` for this profile. |
+| `output_dir` | path | | Overrides `[defaults].output_dir` for this profile. Omit to place PDF next to the source file. |
 | `top_margin` | length | | Overrides `[defaults].top_margin` for this profile. |
 | `head_height` | length | | Overrides `[defaults].head_height` for this profile. |
 

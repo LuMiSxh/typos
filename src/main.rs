@@ -202,9 +202,9 @@ fn resolve_profile_args(
 }
 
 const SAMPLE_TOML: &str = r##"[defaults]
-output_dir = "output"
 main_font = "Arial"
 mono_font = "Consolas"
+# output_dir = "output"     # optional: set to write PDFs into a folder instead of next to the source file
 # template = "custom.typ"   # optional: override the built-in Typst template
 
 [[profiles]]
