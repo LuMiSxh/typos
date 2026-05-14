@@ -80,7 +80,7 @@ impl typst::World for TyposWorld {
             .join(vpath.strip_prefix("/").unwrap_or(vpath));
         if abs.is_file() {
             return std::fs::read(&abs)
-                .map(|data| Bytes::new(data))
+                .map(Bytes::new)
                 .map_err(|_| FileError::NotFound(abs));
         }
         Err(FileError::NotFound(vpath.to_owned()))
@@ -145,13 +145,12 @@ pub fn collect_fonts(extra_font_bytes: Vec<Vec<u8>>) -> Vec<Font> {
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_lowercase();
-                if matches!(ext.as_str(), "ttf" | "otf") {
-                    if let Ok(data) = std::fs::read(&path) {
+                if matches!(ext.as_str(), "ttf" | "otf")
+                    && let Ok(data) = std::fs::read(&path) {
                         for font in Font::iter(Bytes::new(data)) {
                             fonts.push(font);
                         }
                     }
-                }
             }
         }
     }

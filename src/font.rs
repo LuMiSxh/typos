@@ -3,15 +3,15 @@ use crate::config::FontSpec;
 use crate::error::{Result, TyposError};
 
 pub enum ResolvedFont {
-    /// System font: give this name to Typst's font searcher
-    SystemName(String),
+    /// System font resolved by name via Typst's font searcher
+    SystemName,
     /// File font: raw bytes (TTF or OTF)
     Bytes(Vec<u8>),
 }
 
 pub fn resolve(spec: &FontSpec, config_dir: &Path) -> Result<ResolvedFont> {
     match spec {
-        FontSpec::Name(name) => Ok(ResolvedFont::SystemName(name.clone())),
+        FontSpec::Name(_) => Ok(ResolvedFont::SystemName),
         FontSpec::Path { path } => {
             let full_path = if std::path::Path::new(path).is_absolute() {
                 std::path::PathBuf::from(path)

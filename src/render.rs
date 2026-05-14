@@ -18,21 +18,20 @@ pub fn render(markdown_source: &str, profile: &ResolvedProfile) -> Result<Vec<u8
     let mut extra_font_bytes: Vec<Vec<u8>> = Vec::new();
     for font_spec in [&profile.main_font, &profile.mono_font] {
         match resolve_font(font_spec, &profile.config_dir)? {
-            ResolvedFont::SystemName(_) => {}
+            ResolvedFont::SystemName => {}
             ResolvedFont::Bytes(bytes) => extra_font_bytes.push(bytes),
         }
     }
 
     // 4. Collect logo/image files for the world
     let mut files: HashMap<String, Vec<u8>> = HashMap::new();
-    if let Some(logo_path) = &profile.logo {
-        if logo_path.is_file() {
+    if let Some(logo_path) = &profile.logo
+        && logo_path.is_file() {
             let bytes = std::fs::read(logo_path)?;
             let key = format!("/{}", logo_path.to_string_lossy());
             files.insert(key.clone(), bytes.clone());
             files.insert(logo_path.to_string_lossy().to_string(), bytes);
         }
-    }
 
     // 5. Build Typst world
     let fonts = collect_fonts(extra_font_bytes);

@@ -5,7 +5,7 @@ use crate::error::{Result, TyposError};
 
 /// Show a profile picker when multiple profiles exist and none was specified via flag.
 /// Returns the selected profiles (one or more).
-pub fn pick_profiles<'a>(profiles: &'a [ResolvedProfile]) -> Result<Vec<&'a ResolvedProfile>> {
+pub fn pick_profiles(profiles: &[ResolvedProfile]) -> Result<Vec<&ResolvedProfile>> {
     if profiles.is_empty() {
         return Err(TyposError::NoProfiles);
     }
@@ -50,7 +50,7 @@ pub fn guided_flow(profiles: &[ResolvedProfile]) -> Result<GuidedAction> {
     let actions = ["Convert a single file", "Convert a directory (batch)", "List profiles"];
     let action = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("What do you want to do?")
-        .items(&actions)
+        .items(actions)
         .default(0)
         .interact()
         .map_err(|e| TyposError::Io(std::io::Error::other(e.to_string())))?;

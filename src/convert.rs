@@ -5,6 +5,8 @@ use crate::config::ResolvedProfile;
 use crate::error::{Result, TyposError};
 use crate::render;
 
+type BatchResults = Vec<(PathBuf, Vec<(String, Result<PathBuf>)>)>;
+
 /// Convert a single Markdown file with one profile.
 /// Returns the path of the written PDF.
 pub fn convert_file(
@@ -42,7 +44,7 @@ pub fn batch(
     dir: &Path,
     profiles: &[ResolvedProfile],
     output_override: Option<&Path>,
-) -> Vec<(PathBuf, Vec<(String, Result<PathBuf>)>)> {
+) -> BatchResults {
     let md_files: Vec<PathBuf> = WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| match e {
