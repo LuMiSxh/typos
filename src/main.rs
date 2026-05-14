@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod error;
+mod font;
 
 use clap::Parser;
 use cli::Cli;
