@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod error;
 mod font;
+mod world;
 
 use clap::Parser;
 use cli::Cli;
