@@ -45,7 +45,13 @@ pub fn batch(
 ) -> Vec<(PathBuf, Vec<(String, Result<PathBuf>)>)> {
     let md_files: Vec<PathBuf> = WalkDir::new(dir)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(|e| match e {
+            Ok(entry) => Some(entry),
+            Err(err) => {
+                eprintln!("  {} walkdir: {}", style("!").yellow(), err);
+                None
+            }
+        })
         .filter(|e| {
             e.file_type().is_file()
                 && e.path().extension().and_then(|x| x.to_str()) == Some("md")
@@ -88,22 +94,26 @@ fn output_path(
     output_override: Option<&Path>,
     suffix_profile_name: bool,
 ) -> Result<PathBuf> {
+    if let Some(out) = output_override {
+        return Ok(out.to_path_buf());
+    }
+
     let stem = md_path.file_stem()
         .ok_or_else(|| TyposError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "input file has no stem",
         )))?
-        .to_string_lossy();
+        .to_str()
+        .ok_or_else(|| TyposError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "filename is not valid UTF-8",
+        )))?;
 
     let filename = if suffix_profile_name {
         format!("{}_{}.pdf", stem, profile.name)
     } else {
         format!("{}.pdf", stem)
     };
-
-    if let Some(out) = output_override {
-        return Ok(out.to_path_buf());
-    }
 
     Ok(profile.output_dir.join(&filename))
 }
