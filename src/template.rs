@@ -36,6 +36,9 @@ fn build_variable_block(p: &ResolvedProfile) -> String {
     let main_font = font_name(p);
     let mono_font = mono_font_name(p);
 
+    let top_margin = sanitize_length(&p.top_margin);
+    let head_height = sanitize_length(&p.head_height);
+
     format!(
         r#"#let typos-primary = rgb("{primary}")
 #let typos-text-color = rgb("{text_color}")
@@ -48,6 +51,8 @@ fn build_variable_block(p: &ResolvedProfile) -> String {
 #let typos-header-text-color = rgb("{header_text_color}")
 #let typos-main-font = "{main_font}"
 #let typos-mono-font = "{mono_font}"
+#let typos-top-margin = {top_margin}
+#let typos-head-height = {head_height}
 "#,
         primary = p.primary_color.trim_start_matches('#'),
         text_color = p.text_color.trim_start_matches('#'),
@@ -60,6 +65,8 @@ fn build_variable_block(p: &ResolvedProfile) -> String {
         header_text_color = p.header_text_color.trim_start_matches('#'),
         main_font = main_font,
         mono_font = mono_font,
+        top_margin = top_margin,
+        head_height = head_height,
     )
 }
 

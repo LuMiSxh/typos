@@ -84,7 +84,10 @@ pub fn guided_flow(profiles: &[ResolvedProfile]) -> Result<GuidedAction> {
 
     if action == ACTION_CONVERT {
         Ok(GuidedAction::ConvertFile { path, profiles: profile_indices })
-    } else {
+    } else if action == ACTION_BATCH {
         Ok(GuidedAction::Batch { dir: path, profiles: profile_indices })
+    } else {
+        // Should not reach here given the 3-item actions array, but be explicit
+        Ok(GuidedAction::List)
     }
 }

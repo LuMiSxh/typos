@@ -15,12 +15,10 @@ clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"
 thiserror = "2"
-anyhow = "1"
 comrak = "0.52"
 dialoguer = "0.12"
 console = "0.16"
 walkdir = "2"
-brotli = "8"
 mimalloc = { version = "0.1", default-features = false }
 
 # Typst — pin all to same version to avoid incompatibilities

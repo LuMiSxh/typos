@@ -1,7 +1,7 @@
 // Page geometry
 #set page(
   paper: "a4",
-  margin: (left: 2.5cm, right: 2.5cm, top: 3.2cm, bottom: 2.5cm),
+  margin: (left: 2.5cm, right: 2.5cm, top: typos-top-margin, bottom: 2.5cm),
   header: context {
     grid(
       columns: (1fr, auto),
@@ -41,7 +41,7 @@
 )
 
 // Base typography
-#set text(font: typos-main-font, fill: typos-text-color, size: 11pt, lang: "de")
+#set text(font: typos-main-font, fill: typos-text-color, size: 11pt)
 #set par(justify: false, leading: 0.65em)
 
 // Link styling

@@ -69,6 +69,14 @@ fn cmd_convert(
     }
 
     let selected = resolve_profile_args(&profile_args, &all_profiles)?;
+
+    if output.is_some() && selected.len() > 1 {
+        return Err(error::TyposError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "--output cannot be used with multiple profiles; omit --output or select a single profile",
+        )));
+    }
+
     let suffix = selected.len() > 1;
 
     for profile in &selected {
