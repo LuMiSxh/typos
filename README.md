@@ -9,7 +9,7 @@ Convert Markdown files to beautifully branded PDFs — no LaTeX, no Pandoc, no e
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/release/LuMiSxh/typos)](https://github.com/LuMiSxh/typos/releases)
 
-[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Configuration](#configuration)
+[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Configuration](#configuration) • [Template Reference](CONFIGURATION.md)
 
 </div>
 
@@ -99,52 +99,27 @@ typos
 
 ## Configuration
 
+Run `typos init` to generate a `typos.toml`, then edit it:
+
 ```toml
 [defaults]
 output_dir = "output"
-main_font = "Arial"
-mono_font = "Consolas"
+main_font  = "Arial"
+mono_font  = "Consolas"
 
 [[profiles]]
-name = "acme"
+name         = "acme"
 display_name = "ACME Corp"
 primary_color = "#E63946"
-text_color = "#1D3557"
-author = "Jane Smith"
-institute = "ACME Corporation"
-email = "jane@acme.com"
-logo = "assets/acme-logo.png"
-logo_height = "1cm"
-
-[[profiles]]
-name = "personal"
-display_name = "Personal"
-primary_color = "#2196F3"
-author = "Jane Smith"
-email = "jane@personal.dev"
-main_font = { path = "fonts/MyFont.ttf" }
+text_color    = "#1D3557"
+author        = "Jane Smith"
+institute     = "ACME Corporation"
+email         = "jane@acme.com"
+logo          = "assets/acme-logo.png"
+logo_height   = "1cm"
 ```
 
-### Font specification
-
-```toml
-# System font by name
-main_font = "Arial"
-
-# File path (TTF or OTF)
-main_font = { path = "fonts/CustomFont.ttf" }
-```
-
-### Custom template
-
-```toml
-[defaults]
-template = "my_layout.typ"   # applies to all profiles
-
-[[profiles]]
-name = "special"
-template = "special_layout.typ"  # overrides for this profile only
-```
+For the full list of fields, font specification, length values, and how to write a custom Typst template with all available variables, see **[CONFIGURATION.md](CONFIGURATION.md)**.
 
 ---
 
