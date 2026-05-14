@@ -1,2 +1,9 @@
 /target
-*.pdf
+**/*.pdf
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+.env
+dist/
