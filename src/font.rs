@@ -42,50 +42,29 @@ pub fn resolve(spec: &FontSpec, config_dir: &Path) -> Result<ResolvedFont> {
     }
 }
 
-/// Convert woff2 bytes to TTF bytes using brotli decompression.
+/// Convert woff2 bytes to TTF bytes.
 ///
-/// woff2 = Brotli-compressed SFNT with a transformed table format.
-/// We attempt basic decompression; for full production support the user
-/// should convert woff2 → ttf with fonttools before use.
+/// woff2 uses a "transformed tables" format that requires full SFNT reconstruction
+/// after brotli decompression — it cannot be decoded with simple decompression.
+/// This function provides a clear error message directing users to the proper tool.
 fn woff2_to_ttf(woff2_bytes: &[u8]) -> std::result::Result<Vec<u8>, String> {
     // Check woff2 magic: "wOF2"
     if woff2_bytes.len() < 4 || &woff2_bytes[0..4] != b"wOF2" {
         return Err("not a valid woff2 file (missing wOF2 magic)".to_string());
     }
 
-    // woff2 total compressed size is at bytes 16..20 (big-endian u32)
-    if woff2_bytes.len() < 48 {
-        return Err("woff2 header too short".to_string());
-    }
-
-    let compressed_size = u32::from_be_bytes([
-        woff2_bytes[16], woff2_bytes[17], woff2_bytes[18], woff2_bytes[19],
-    ]) as usize;
-
-    let _header_size = 48usize; // approximate; actual varies by table count
-    let compressed_data_start = woff2_bytes.len().saturating_sub(compressed_size);
-
-    let compressed = &woff2_bytes[compressed_data_start..];
-    let mut decompressed = Vec::new();
-    brotli::BrotliDecompress(&mut std::io::Cursor::new(compressed), &mut decompressed)
-        .map_err(|e| format!("brotli decompression failed: {e}"))?;
-
-    if decompressed.len() < 4 {
-        return Err("decompressed data too short to be a valid font".to_string());
-    }
-
-    // Check for valid SFNT signature (TTF: 0x00010000 or 'true', OTF: 'OTTO')
-    let sfnt_magic = &decompressed[0..4];
-    if sfnt_magic == b"OTTO" || sfnt_magic == b"true"
-        || sfnt_magic == &[0x00, 0x01, 0x00, 0x00]
-    {
-        Ok(decompressed)
-    } else {
-        Err(format!(
-            "decompressed data has unexpected SFNT magic: {:02x?}. \
-             Consider converting woff2 → ttf first using: \
-             pip install fonttools && python -m fontTools.ttLib.woff2 decompress font.woff2",
-            sfnt_magic
-        ))
-    }
+    // Full woff2 → TTF conversion requires SFNT table reconstruction after
+    // brotli decompression — it is not a simple stream decode. Please convert
+    // the font to TTF first using fonttools:
+    //
+    //   pip install fonttools brotli
+    //   python -m fontTools.ttLib.woff2 decompress your-font.woff2
+    //
+    // This produces a .ttf file you can reference directly in typos.toml.
+    Err(
+        "woff2 fonts must be converted to TTF before use with typos. \
+         Run: pip install fonttools brotli && \
+         python -m fontTools.ttLib.woff2 decompress your-font.woff2"
+            .to_string(),
+    )
 }
