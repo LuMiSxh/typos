@@ -45,6 +45,8 @@ pub struct Profile {
     pub mono_font: Option<FontSpec>,
     pub template: Option<String>,
     pub output_dir: Option<String>,
+    pub top_margin: Option<String>,
+    pub head_height: Option<String>,
 }
 
 /// The full typos.toml structure.
@@ -75,12 +77,23 @@ pub struct ResolvedProfile {
     pub template: Option<PathBuf>,
     pub output_dir: PathBuf,
     pub config_dir: PathBuf,
+    pub top_margin: String,
+    pub head_height: String,
+}
+
+fn absolutise_font(spec: FontSpec, config_dir: &Path) -> FontSpec {
+    match spec {
+        FontSpec::Path { path } => FontSpec::Path {
+            path: config_dir.join(&path).to_string_lossy().into_owned(),
+        },
+        other => other,
+    }
 }
 
 /// Walk up from `start` until a `typos.toml` is found.
 /// Returns (config_dir, parsed config) or Err if not found.
 pub fn discover(start: &Path) -> Result<(PathBuf, TyposConfig)> {
-    let mut dir = start.to_path_buf();
+    let mut dir = start.canonicalize().unwrap_or_else(|_| start.to_path_buf());
     loop {
         let candidate = dir.join("typos.toml");
         if candidate.is_file() {
@@ -99,12 +112,18 @@ impl TyposConfig {
     /// Merge defaults into each profile and resolve all paths relative to config_dir.
     pub fn resolve(&self, config_dir: &Path) -> Vec<ResolvedProfile> {
         self.profiles.iter().map(|p| {
-            let main_font = p.main_font.clone()
-                .or_else(|| self.defaults.main_font.clone())
-                .unwrap_or(FontSpec::Name("Arial".to_string()));
-            let mono_font = p.mono_font.clone()
-                .or_else(|| self.defaults.mono_font.clone())
-                .unwrap_or(FontSpec::Name("Consolas".to_string()));
+            let main_font = absolutise_font(
+                p.main_font.clone()
+                    .or_else(|| self.defaults.main_font.clone())
+                    .unwrap_or(FontSpec::Name("Arial".to_string())),
+                config_dir,
+            );
+            let mono_font = absolutise_font(
+                p.mono_font.clone()
+                    .or_else(|| self.defaults.mono_font.clone())
+                    .unwrap_or(FontSpec::Name("Consolas".to_string())),
+                config_dir,
+            );
             let output_dir = p.output_dir.as_ref()
                 .or(self.defaults.output_dir.as_ref())
                 .map(|s| s.as_str())
@@ -124,12 +143,18 @@ impl TyposConfig {
                 logo: p.logo.as_ref().map(|l| config_dir.join(l)),
                 logo_height: p.logo_height.clone().unwrap_or_else(|| "1cm".to_string()),
                 header_text: p.header_text.clone().unwrap_or_default(),
-                header_text_color: p.header_text_color.clone().unwrap_or_else(|| "000000".to_string()),
+                header_text_color: p.header_text_color.clone().unwrap_or_else(|| "#000000".to_string()),
                 main_font,
                 mono_font,
                 template,
                 output_dir: config_dir.join(output_dir),
                 config_dir: config_dir.to_path_buf(),
+                top_margin: p.top_margin.clone()
+                    .or_else(|| self.defaults.top_margin.clone())
+                    .unwrap_or_else(|| "3cm".to_string()),
+                head_height: p.head_height.clone()
+                    .or_else(|| self.defaults.head_height.clone())
+                    .unwrap_or_else(|| "1.3cm".to_string()),
             }
         }).collect()
     }
