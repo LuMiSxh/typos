@@ -41,20 +41,21 @@
 )
 
 // Base typography
-#set text(font: typos-main-font, fill: typos-text-color, size: 11pt)
-#set par(justify: false, leading: 0.65em)
+#set text(font: typos-main-font, fill: typos-text-color, size: 10.5pt)
+#set par(justify: true, leading: 0.75em)
+#show par: set block(spacing: 1.2em)
 
 // Link styling
 #show link: set text(fill: typos-primary)
 
-// Heading sizes — toned down from Typst defaults
-#show heading.where(level: 1): set text(size: 15pt, weight: "semibold")
-#show heading.where(level: 2): set text(size: 13pt, weight: "semibold")
-#show heading.where(level: 3): set text(size: 11pt, weight: "bold")
-#show heading.where(level: 4): set text(size: 11pt, weight: "regular", style: "italic")
+// Heading sizes — professional and consistent weights
+#show heading.where(level: 1): set text(size: 14pt, weight: "semibold")
+#show heading.where(level: 2): set text(size: 12pt, weight: "semibold")
+#show heading.where(level: 3): set text(size: 11pt, weight: "semibold")
+#show heading.where(level: 4): set text(size: 10.5pt, weight: "semibold", style: "italic")
 
-// Heading keep-with-next (widow/orphan prevention)
-#show heading: it => block(breakable: false, above: 1.2em, below: 0.5em)[#it]
+// Heading keep-with-next (widow/orphan prevention) and spacing
+#show heading: it => block(breakable: false, above: 1.6em, below: 0.8em)[#it]
 
 // Code block styling
 #show raw.where(block: true): it => block(
@@ -73,6 +74,18 @@
   radius: 2pt,
   baseline: 1pt,
 )[#text(font: typos-mono-font)[#it]]
+
+// Blockquote styling
+#show quote: set block(
+  fill: rgb("#f9f9f9"),
+  stroke: (left: 3pt + typos-primary),
+  inset: (left: 10pt, top: 5pt, bottom: 5pt, right: 5pt),
+  width: 100%,
+)
+
+// Lists indentation
+#set list(indent: 1em)
+#set enum(indent: 1em)
 
 // Table styling — alternating row fill, bold header
 #set table(
