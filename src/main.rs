@@ -3,6 +3,7 @@ mod config;
 mod convert;
 mod error;
 mod font;
+mod interactive;
 mod markdown;
 mod render;
 mod template;
