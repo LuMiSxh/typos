@@ -1,5 +1,6 @@
 mod cli;
 mod config;
+mod convert;
 mod error;
 mod font;
 mod markdown;
