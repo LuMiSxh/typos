@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum TyposError {
+pub(crate) enum TyposError {
     #[error("no typos.toml found in '{0}' or any parent directory")]
     ConfigNotFound(PathBuf),
 
@@ -40,4 +40,4 @@ pub enum TyposError {
     BatchFailed(usize),
 }
 
-pub type Result<T> = std::result::Result<T, TyposError>;
+pub(crate) type Result<T> = std::result::Result<T, TyposError>;

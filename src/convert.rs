@@ -1,15 +1,15 @@
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use console::style;
 use crate::config::ResolvedProfile;
 use crate::error::{Result, TyposError};
+use crate::output;
 use crate::render;
 
-type BatchResults = Vec<(PathBuf, Vec<(String, Result<PathBuf>)>)>;
+pub(crate) type BatchResults = Vec<(PathBuf, Vec<(String, Result<PathBuf>)>)>;
 
 /// Convert a single Markdown file with one profile.
 /// Returns the path of the written PDF.
-pub fn convert_file(
+pub(crate) fn convert_file(
     md_path: &Path,
     profile: &ResolvedProfile,
     output_override: Option<&Path>,
@@ -27,7 +27,7 @@ pub fn convert_file(
 }
 
 /// Convert a single file with multiple profiles.
-pub fn convert_file_multi(
+pub(crate) fn convert_file_multi(
     md_path: &Path,
     profiles: &[ResolvedProfile],
     output_override: Option<&Path>,
@@ -40,7 +40,7 @@ pub fn convert_file_multi(
 }
 
 /// Convert all .md files under `dir` with multiple profiles.
-pub fn batch(
+pub(crate) fn batch(
     dir: &Path,
     profiles: &[ResolvedProfile],
     output_override: Option<&Path>,
@@ -50,7 +50,7 @@ pub fn batch(
         .filter_map(|e| match e {
             Ok(entry) => Some(entry),
             Err(err) => {
-                eprintln!("  {} walkdir: {}", style("!").yellow(), err);
+                output::warn(&format!("walkdir: {}", err));
                 None
             }
         })
@@ -68,25 +68,11 @@ pub fn batch(
 }
 
 /// Print a conversion result to the terminal.
-pub fn print_result(md_path: &Path, profile_name: &str, result: &Result<PathBuf>) {
+pub(crate) fn print_result(md_path: &Path, profile_name: &str, result: &Result<PathBuf>) {
+    let name = output::short_path(md_path);
     match result {
-        Ok(pdf_path) => {
-            println!(
-                "  {} {} → {}",
-                style("✓").green(),
-                style(md_path.display()).dim(),
-                style(pdf_path.display()).cyan(),
-            );
-        }
-        Err(e) => {
-            eprintln!(
-                "  {} {} [{}]: {}",
-                style("✗").red(),
-                style(md_path.display()).dim(),
-                style(profile_name).yellow(),
-                style(e).red(),
-            );
-        }
+        Ok(pdf_path) => output::ok(&name, &format!("→ {}", output::short_path(pdf_path))),
+        Err(e) => output::fail(&name, profile_name, &e.to_string()),
     }
 }
 

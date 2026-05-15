@@ -9,7 +9,7 @@ use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::Library;
 
-pub struct TyposWorld {
+pub(crate) struct TyposWorld {
     source: Source,
     library: LazyHash<Library>,
     book: LazyHash<FontBook>,
@@ -19,7 +19,7 @@ pub struct TyposWorld {
 }
 
 impl TyposWorld {
-    pub fn new(
+    pub(crate) fn new(
         source_text: String,
         fonts: Vec<Font>,
         files: HashMap<String, Vec<u8>>,
@@ -124,7 +124,7 @@ fn days_since_epoch_to_ymd(z: i32) -> (i32, u8, u8) {
 }
 
 /// Collect fonts: bundled typst-assets fonts + system fonts + extra bytes from profiles.
-pub fn collect_fonts(extra_font_bytes: Vec<Vec<u8>>) -> Vec<Font> {
+pub(crate) fn collect_fonts(extra_font_bytes: Vec<Vec<u8>>) -> Vec<Font> {
     let mut fonts = Vec::new();
 
     // Bundled Typst fonts (required for standard library)
@@ -135,22 +135,28 @@ pub fn collect_fonts(extra_font_bytes: Vec<Vec<u8>>) -> Vec<Font> {
         }
     }
 
-    // System fonts
+    // System fonts (recursively scan well-known directories)
     for dir in system_font_dirs() {
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                let ext = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("")
-                    .to_lowercase();
-                if matches!(ext.as_str(), "ttf" | "otf")
-                    && let Ok(data) = std::fs::read(&path) {
-                        for font in Font::iter(Bytes::new(data)) {
-                            fonts.push(font);
-                        }
-                    }
+        for entry in walkdir::WalkDir::new(&dir)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let ext = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            if matches!(ext.as_str(), "ttf" | "otf" | "ttc" | "otc")
+                && let Ok(data) = std::fs::read(path)
+            {
+                for font in Font::iter(Bytes::new(data)) {
+                    fonts.push(font);
+                }
             }
         }
     }

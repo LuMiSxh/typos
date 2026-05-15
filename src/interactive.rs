@@ -5,7 +5,7 @@ use crate::error::{Result, TyposError};
 
 /// Show a profile picker when multiple profiles exist and none was specified via flag.
 /// Returns the selected profiles (one or more).
-pub fn pick_profiles(profiles: &[ResolvedProfile]) -> Result<Vec<&ResolvedProfile>> {
+pub(crate) fn pick_profiles(profiles: &[ResolvedProfile]) -> Result<Vec<&ResolvedProfile>> {
     if profiles.is_empty() {
         return Err(TyposError::NoProfiles);
     }
@@ -31,14 +31,14 @@ pub fn pick_profiles(profiles: &[ResolvedProfile]) -> Result<Vec<&ResolvedProfil
 }
 
 #[derive(Debug)]
-pub enum GuidedAction {
+pub(crate) enum GuidedAction {
     ConvertFile { path: PathBuf, profiles: Vec<String> },
     Batch { dir: PathBuf, profiles: Vec<String> },
     List,
 }
 
 /// Full guided no-argument flow.
-pub fn guided_flow(profiles: &[ResolvedProfile]) -> Result<GuidedAction> {
+pub(crate) fn guided_flow(profiles: &[ResolvedProfile]) -> Result<GuidedAction> {
     if profiles.is_empty() {
         return Err(TyposError::NoProfiles);
     }
@@ -76,11 +76,10 @@ pub fn guided_flow(profiles: &[ResolvedProfile]) -> Result<GuidedAction> {
         .interact()
         .map_err(|e| TyposError::Io(std::io::Error::other(e.to_string())))?;
 
-    let profile_indices: Vec<String> = if selected.is_empty() {
-        vec![profiles[0].name.clone()]
-    } else {
-        selected.iter().map(|&i| profiles[i].name.clone()).collect()
-    };
+    if selected.is_empty() {
+        return Err(TyposError::NoProfiles);
+    }
+    let profile_indices: Vec<String> = selected.iter().map(|&i| profiles[i].name.clone()).collect();
 
     if action == ACTION_CONVERT {
         Ok(GuidedAction::ConvertFile { path, profiles: profile_indices })

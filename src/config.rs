@@ -5,7 +5,7 @@ use crate::error::{Result, TyposError};
 /// Font specification: either a system-installed font name or a path to a font file.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
-pub enum FontSpec {
+pub(crate) enum FontSpec {
     Name(String),
     Path { path: String },
 }
@@ -18,68 +18,68 @@ impl Default for FontSpec {
 
 /// The [defaults] section — values applied to all profiles unless overridden.
 #[derive(Debug, Clone, Deserialize, Default)]
-pub struct Defaults {
-    pub output_dir: Option<String>,
-    pub main_font: Option<FontSpec>,
-    pub mono_font: Option<FontSpec>,
-    pub template: Option<String>,
-    pub top_margin: Option<String>,
-    pub head_height: Option<String>,
+pub(crate) struct Defaults {
+    pub(crate) output_dir: Option<String>,
+    pub(crate) main_font: Option<FontSpec>,
+    pub(crate) mono_font: Option<FontSpec>,
+    pub(crate) template: Option<String>,
+    pub(crate) top_margin: Option<String>,
+    pub(crate) head_height: Option<String>,
 }
 
 /// One [[profiles]] entry in typos.toml.
 #[derive(Debug, Clone, Deserialize)]
-pub struct Profile {
-    pub name: String,
-    pub display_name: Option<String>,
-    pub primary_color: Option<String>,
-    pub text_color: Option<String>,
-    pub author: Option<String>,
-    pub institute: Option<String>,
-    pub email: Option<String>,
-    pub logo: Option<String>,
-    pub logo_height: Option<String>,
-    pub header_text: Option<String>,
-    pub header_text_color: Option<String>,
-    pub main_font: Option<FontSpec>,
-    pub mono_font: Option<FontSpec>,
-    pub template: Option<String>,
-    pub output_dir: Option<String>,
-    pub top_margin: Option<String>,
-    pub head_height: Option<String>,
+pub(crate) struct Profile {
+    pub(crate) name: String,
+    pub(crate) display_name: Option<String>,
+    pub(crate) primary_color: Option<String>,
+    pub(crate) text_color: Option<String>,
+    pub(crate) author: Option<String>,
+    pub(crate) institute: Option<String>,
+    pub(crate) email: Option<String>,
+    pub(crate) logo: Option<String>,
+    pub(crate) logo_height: Option<String>,
+    pub(crate) header_text: Option<String>,
+    pub(crate) header_text_color: Option<String>,
+    pub(crate) main_font: Option<FontSpec>,
+    pub(crate) mono_font: Option<FontSpec>,
+    pub(crate) template: Option<String>,
+    pub(crate) output_dir: Option<String>,
+    pub(crate) top_margin: Option<String>,
+    pub(crate) head_height: Option<String>,
 }
 
 /// The full typos.toml structure.
 #[derive(Debug, Clone, Deserialize, Default)]
-pub struct TyposConfig {
+pub(crate) struct TyposConfig {
     #[serde(default)]
-    pub defaults: Defaults,
+    pub(crate) defaults: Defaults,
     #[serde(default, rename = "profiles")]
-    pub profiles: Vec<Profile>,
+    pub(crate) profiles: Vec<Profile>,
 }
 
 /// All fields resolved (defaults merged in, paths made absolute).
 #[derive(Debug, Clone)]
-pub struct ResolvedProfile {
-    pub name: String,
-    pub display_name: String,
-    pub primary_color: String,
-    pub text_color: String,
-    pub author: String,
-    pub institute: String,
-    pub email: String,
-    pub logo: Option<PathBuf>,
-    pub logo_height: String,
-    pub header_text: String,
-    pub header_text_color: String,
-    pub main_font: FontSpec,
-    pub mono_font: FontSpec,
-    pub template: Option<PathBuf>,
+pub(crate) struct ResolvedProfile {
+    pub(crate) name: String,
+    pub(crate) display_name: String,
+    pub(crate) primary_color: String,
+    pub(crate) text_color: String,
+    pub(crate) author: String,
+    pub(crate) institute: String,
+    pub(crate) email: String,
+    pub(crate) logo: Option<PathBuf>,
+    pub(crate) logo_height: String,
+    pub(crate) header_text: String,
+    pub(crate) header_text_color: String,
+    pub(crate) main_font: FontSpec,
+    pub(crate) mono_font: FontSpec,
+    pub(crate) template: Option<PathBuf>,
     /// None = write PDF next to the source file; Some = explicit directory
-    pub output_dir: Option<PathBuf>,
-    pub config_dir: PathBuf,
-    pub top_margin: String,
-    pub head_height: String,
+    pub(crate) output_dir: Option<PathBuf>,
+    pub(crate) config_dir: PathBuf,
+    pub(crate) top_margin: String,
+    pub(crate) head_height: String,
 }
 
 fn absolutise_font(spec: FontSpec, config_dir: &Path) -> FontSpec {
@@ -93,7 +93,7 @@ fn absolutise_font(spec: FontSpec, config_dir: &Path) -> FontSpec {
 
 /// Walk up from `start` until a `typos.toml` is found.
 /// Returns (config_dir, parsed config) or Err if not found.
-pub fn discover(start: &Path) -> Result<(PathBuf, TyposConfig)> {
+pub(crate) fn discover(start: &Path) -> Result<(PathBuf, TyposConfig)> {
     let mut dir = start.canonicalize().unwrap_or_else(|_| start.to_path_buf());
     loop {
         let candidate = dir.join("typos.toml");
@@ -111,7 +111,7 @@ pub fn discover(start: &Path) -> Result<(PathBuf, TyposConfig)> {
 
 impl TyposConfig {
     /// Merge defaults into each profile and resolve all paths relative to config_dir.
-    pub fn resolve(&self, config_dir: &Path) -> Vec<ResolvedProfile> {
+    pub(crate) fn resolve(&self, config_dir: &Path) -> Vec<ResolvedProfile> {
         self.profiles.iter().map(|p| {
             let main_font = absolutise_font(
                 p.main_font.clone()

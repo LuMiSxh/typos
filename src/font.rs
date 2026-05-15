@@ -2,14 +2,14 @@ use std::path::Path;
 use crate::config::FontSpec;
 use crate::error::{Result, TyposError};
 
-pub enum ResolvedFont {
+pub(crate) enum ResolvedFont {
     /// System font resolved by name via Typst's font searcher
     SystemName,
     /// File font: raw bytes (TTF or OTF)
     Bytes(Vec<u8>),
 }
 
-pub fn resolve(spec: &FontSpec, config_dir: &Path) -> Result<ResolvedFont> {
+pub(crate) fn resolve(spec: &FontSpec, config_dir: &Path) -> Result<ResolvedFont> {
     match spec {
         FontSpec::Name(_) => Ok(ResolvedFont::SystemName),
         FontSpec::Path { path } => {

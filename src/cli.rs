@@ -8,13 +8,13 @@ use std::path::PathBuf;
     about = "Self-contained Markdown to branded PDF converter",
     long_about = None,
 )]
-pub struct Cli {
+pub(crate) struct Cli {
     #[command(subcommand)]
-    pub command: Option<Command>,
+    pub(crate) command: Option<Command>,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum Command {
+pub(crate) enum Command {
     /// Convert a single Markdown file to PDF
     Convert {
         /// Path to the Markdown file

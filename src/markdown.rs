@@ -1,13 +1,14 @@
 use comrak::{Arena, Options, parse_document, nodes::*};
 
 /// Parse `markdown` (CommonMark + GFM extensions) and emit Typst markup.
-pub fn to_typst(markdown: &str) -> String {
+pub(crate) fn to_typst(markdown: &str) -> String {
     let arena = Arena::new();
     let mut opts = Options::default();
     opts.extension.table = true;
     opts.extension.strikethrough = true;
     opts.extension.tasklist = true;
     opts.extension.autolink = true;
+    opts.extension.math_dollars = true;
     opts.render.r#unsafe = false;
 
     let root = parse_document(&arena, markdown, &opts);
@@ -179,6 +180,17 @@ fn render_inline<'a>(node: &'a AstNode<'a>, out: &mut String) {
             out.push_str(&c.literal.replace('`', "\\`"));
             out.push('`');
         }
+        Math(m) => {
+            if m.display_math {
+                out.push_str("$ ");
+                out.push_str(&m.literal);
+                out.push_str(" $");
+            } else {
+                out.push('$');
+                out.push_str(&m.literal);
+                out.push('$');
+            }
+        }
         Link(link) => {
             out.push_str("#link(\"");
             out.push_str(&escape_url(&link.url));
@@ -259,6 +271,24 @@ mod tests {
     fn inline_code() {
         let out = to_typst("use `foo` here");
         assert!(out.contains("`foo`"));
+    }
+
+    #[test]
+    fn inline_math_passthrough() {
+        let out = to_typst("The angle $alpha$ is small.");
+        assert!(out.contains("$alpha$"), "got: {out}");
+    }
+
+    #[test]
+    fn display_math_passthrough() {
+        let out = to_typst("$$E = mc^2$$");
+        assert!(out.contains("$ E = mc^2 $"), "got: {out}");
+    }
+
+    #[test]
+    fn literal_dollar_still_escaped() {
+        let out = to_typst("It costs $5.");
+        assert!(out.contains("\\$5"), "got: {out}");
     }
 
     #[test]

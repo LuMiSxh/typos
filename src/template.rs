@@ -7,7 +7,7 @@ const DEFAULT_TEMPLATE: &str = include_str!("../assets/default.typ");
 ///   1. Variable injection block (#let typos-X = ...)
 ///   2. Template (embedded default or profile override)
 ///   3. Markdown content (already converted to Typst markup)
-pub fn assemble(profile: &ResolvedProfile, content: &str) -> Result<String> {
+pub(crate) fn assemble(profile: &ResolvedProfile, content: &str) -> Result<String> {
     let template = load_template(profile)?;
     let vars = build_variable_block(profile);
     Ok(format!("{vars}\n{template}\n\n{content}"))
@@ -85,22 +85,22 @@ fn sanitize_length(s: &str) -> &str {
     }
 }
 
-/// Extract the font family name for main_font.
-/// For Name variants, use the name directly.
-/// For Path variants, the font bytes are loaded into the Typst world;
-/// we pass the PostScript family name. Since we don't parse the font here,
-/// fall back to "Arial" — the user should set main_font to the family name
-/// if using a file font.
-fn font_name(p: &ResolvedProfile) -> String {
-    match &p.main_font {
+/// Extract a Typst-safe font family name from a FontSpec.
+/// For Path variants the font bytes are loaded into the world under their
+/// embedded family name; since we don't parse the font file here we can't
+/// know that name. Users should use `FontSpec::Name` alongside a path font
+/// to specify the family name explicitly in the template.
+fn font_name_from_spec(spec: &FontSpec, fallback: &str) -> String {
+    match spec {
         FontSpec::Name(name) => escape_typst_string(name),
-        FontSpec::Path { .. } => "Arial".to_string(),
+        FontSpec::Path { .. } => fallback.to_string(),
     }
 }
 
+fn font_name(p: &ResolvedProfile) -> String {
+    font_name_from_spec(&p.main_font, "Arial")
+}
+
 fn mono_font_name(p: &ResolvedProfile) -> String {
-    match &p.mono_font {
-        FontSpec::Name(name) => escape_typst_string(name),
-        FontSpec::Path { .. } => "Courier New".to_string(),
-    }
+    font_name_from_spec(&p.mono_font, "Courier New")
 }

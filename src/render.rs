@@ -7,7 +7,7 @@ use crate::world::{TyposWorld, collect_fonts};
 use crate::{markdown, template};
 
 /// Convert a Markdown string to PDF bytes using the given profile.
-pub fn render(markdown_source: &str, profile: &ResolvedProfile) -> Result<Vec<u8>> {
+pub(crate) fn render(markdown_source: &str, profile: &ResolvedProfile) -> Result<Vec<u8>> {
     // 1. Convert Markdown → Typst markup
     let content = markdown::to_typst(markdown_source);
 
@@ -28,8 +28,6 @@ pub fn render(markdown_source: &str, profile: &ResolvedProfile) -> Result<Vec<u8
     if let Some(logo_path) = &profile.logo
         && logo_path.is_file() {
             let bytes = std::fs::read(logo_path)?;
-            let key = format!("/{}", logo_path.to_string_lossy());
-            files.insert(key.clone(), bytes.clone());
             files.insert(logo_path.to_string_lossy().to_string(), bytes);
         }
 
@@ -41,7 +39,13 @@ pub fn render(markdown_source: &str, profile: &ResolvedProfile) -> Result<Vec<u8
     // .output is SourceResult<PagedDocument> = Result<PagedDocument, EcoVec<SourceDiagnostic>>
     let result = typst::compile::<PagedDocument>(&world);
     let document = result.output.map_err(|errors| {
-        let msgs: Vec<_> = errors.iter().map(|e| e.message.to_string()).collect();
+        let msgs: Vec<_> = errors.iter().map(|e| {
+            let mut s = e.message.to_string();
+            for hint in &e.hints {
+                s.push_str(&format!(" (hint: {})", hint));
+            }
+            s
+        }).collect();
         TyposError::Compile(msgs.join("; "))
     })?;
 

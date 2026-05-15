@@ -5,53 +5,58 @@ mod error;
 mod font;
 mod interactive;
 mod markdown;
+mod output;
 mod render;
 mod template;
 mod world;
 
 use std::path::PathBuf;
+use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command};
-use console::style;
 
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("{} {}", style("error:").red().bold(), e);
+        use console::style;
+        eprintln!("\n{} {}", style("Error:").red().bold(), e);
+        for cause in e.chain().skip(1) {
+            eprintln!("  {} {}", style("caused by:").dim(), cause);
+        }
         std::process::exit(1);
     }
 }
 
-fn run() -> error::Result<()> {
+fn run() -> Result<()> {
     let cli = Cli::parse();
-    let cwd = std::env::current_dir()
-        .map_err(error::TyposError::Io)?;
+    let cwd = std::env::current_dir()?;
 
     match cli.command {
-        Some(Command::Init) => cmd_init(&cwd),
-        Some(Command::List) => cmd_list(&cwd),
+        Some(Command::Init) => cmd_init(&cwd)?,
+        Some(Command::List) => cmd_list(&cwd)?,
         Some(Command::Convert { file, profiles, output }) => {
-            cmd_convert(&cwd, file, profiles, output)
+            cmd_convert(&cwd, file, profiles, output)?
         }
         Some(Command::Batch { dir, profiles, output }) => {
-            cmd_batch(&cwd, dir, profiles, output)
+            cmd_batch(&cwd, dir, profiles, output)?
         }
-        None => cmd_interactive(&cwd),
+        None => cmd_interactive(&cwd)?,
     }
+    Ok(())
 }
 
 fn cmd_list(cwd: &std::path::Path) -> error::Result<()> {
     let (config_dir, cfg) = config::discover(cwd)?;
     let profiles = cfg.resolve(&config_dir);
     if profiles.is_empty() {
-        println!("No profiles defined in typos.toml");
+        output::warn("no profiles defined in typos.toml");
         return Ok(());
     }
-    println!("Profiles:");
+    output::header("Profiles");
     for p in &profiles {
-        println!("  {} — {}", style(&p.name).cyan(), p.display_name);
+        output::info(&format!("{} — {}", p.name, p.display_name));
     }
     Ok(())
 }
@@ -100,21 +105,8 @@ fn cmd_batch(
     }
 
     let selected = resolve_profile_args(&profile_args, &all_profiles)?;
-
     let results = convert::batch(&dir, &selected, output.as_deref());
-    let error_count = results.iter()
-        .flat_map(|(_, file_results)| file_results.iter())
-        .filter(|(_, r)| r.is_err())
-        .count();
-    for (md_path, file_results) in &results {
-        for (profile_name, result) in file_results {
-            convert::print_result(md_path, profile_name, result);
-        }
-    }
-    if error_count > 0 {
-        return Err(error::TyposError::BatchFailed(error_count));
-    }
-    Ok(())
+    report_batch_results(results)
 }
 
 fn cmd_interactive(cwd: &std::path::Path) -> error::Result<()> {
@@ -147,19 +139,7 @@ fn cmd_interactive(cwd: &std::path::Path) -> error::Result<()> {
                 return Err(error::TyposError::NoProfiles);
             }
             let results = convert::batch(&dir, &selected, None);
-            let error_count = results.iter()
-                .flat_map(|(_, file_results)| file_results.iter())
-                .filter(|(_, r)| r.is_err())
-                .count();
-            for (md_path, file_results) in &results {
-                for (profile_name, result) in file_results {
-                    convert::print_result(md_path, profile_name, result);
-                }
-            }
-            if error_count > 0 {
-                return Err(error::TyposError::BatchFailed(error_count));
-            }
-            Ok(())
+            report_batch_results(results)
         }
     }
 }
@@ -167,11 +147,27 @@ fn cmd_interactive(cwd: &std::path::Path) -> error::Result<()> {
 fn cmd_init(cwd: &std::path::Path) -> error::Result<()> {
     let dest = cwd.join("typos.toml");
     if dest.exists() {
-        eprintln!("{} typos.toml already exists", style("warning:").yellow().bold());
+        output::warn("typos.toml already exists");
         return Ok(());
     }
     std::fs::write(&dest, SAMPLE_TOML)?;
-    println!("{} created typos.toml", style("✓").green());
+    output::ok("typos.toml", "created");
+    Ok(())
+}
+
+fn report_batch_results(results: convert::BatchResults) -> error::Result<()> {
+    let error_count = results.iter()
+        .flat_map(|(_, file_results)| file_results.iter())
+        .filter(|(_, r)| r.is_err())
+        .count();
+    for (md_path, file_results) in &results {
+        for (profile_name, result) in file_results {
+            convert::print_result(md_path, profile_name, result);
+        }
+    }
+    if error_count > 0 {
+        return Err(error::TyposError::BatchFailed(error_count));
+    }
     Ok(())
 }
 
