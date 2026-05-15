@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[command(
     name = "typos",
     version,
-    about = "Self-contained Markdown to branded PDF converter",
+    about = "Self-contained Markdown/Typst to branded PDF converter",
     long_about = None,
 )]
 pub(crate) struct Cli {
@@ -15,9 +15,9 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
-    /// Convert a single Markdown file to PDF
+    /// Convert a single Markdown or Typst file to PDF
     Convert {
-        /// Path to the Markdown file
+        /// Path to the .md or .typ source file
         file: PathBuf,
 
         /// Profile name(s), comma-separated or "all" (e.g. "luca,hzd" or "all")
@@ -27,11 +27,15 @@ pub(crate) enum Command {
         /// Override output path (only valid for a single profile)
         #[arg(short, long)]
         output: Option<PathBuf>,
+
+        /// Open the resulting PDF after conversion
+        #[arg(long)]
+        open: bool,
     },
 
-    /// Convert all Markdown files in a directory
+    /// Convert all .md/.typ files in a directory (recursive, parallel)
     Batch {
-        /// Directory to search for .md files (recursive)
+        /// Directory to search
         dir: PathBuf,
 
         /// Profile name(s), comma-separated or "all"
@@ -39,6 +43,20 @@ pub(crate) enum Command {
         profiles: Vec<String>,
 
         /// Override output directory
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Watch a file or directory and re-convert on every change
+    Watch {
+        /// File or directory to watch
+        path: PathBuf,
+
+        /// Profile name(s), comma-separated or "all"
+        #[arg(long = "profile", value_delimiter = ',')]
+        profiles: Vec<String>,
+
+        /// Override output path/directory
         #[arg(short, long)]
         output: Option<PathBuf>,
     },

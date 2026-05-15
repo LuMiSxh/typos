@@ -7,6 +7,25 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-15
+
+### Added
+
+- **Typst file input**: `typos convert report.typ` now works — `.typ` source files are wrapped in the same branded template as Markdown, skipping only the Markdown→Typst conversion step. Batch picks up both `.md` and `.typ`.
+- **Document front-matter**: any source file (`.md` or `.typ`) may begin with a TOML front-matter block (`+++ … +++` or `--- … ---`). Recognised keys override profile fields just for that file; unknown keys are exposed to the template as `typos-<key>`.
+- **Profile inheritance via `extends`**: a profile can declare `extends = "<other_profile>"` to inherit every field; missing values walk the chain leaf → parent → grandparent. Cycles are detected and broken safely.
+- **Custom template variables**: `[defaults.vars]` and `[profiles.X.vars]` tables expose arbitrary user values to templates as `typos-<key>` bindings. Supports strings, numbers, bools, arrays, and inline tables.
+- **`watch` command**: `typos watch path --profile X` watches a file or directory and re-converts on every change, with per-path debouncing.
+- **`--open` flag**: `typos convert ... --open` opens the resulting PDF after a successful conversion.
+
+### Changed
+
+- **Default fonts switched to bundled**: `main_font` defaults to `"Libertinus Serif"`, `mono_font` to `"DejaVu Sans Mono"` (both shipped inside the binary). Identical, predictable output on every machine — no more "font not found" surprises when system Arial/Consolas are missing.
+- **Built-in template redesigned**: uniform bold-only heading weights with a cleaner size scale (17/14/12/11 pt), primary-tinted headings, larger code blocks (9.5 pt), inline code at relative size (0.92 em), tighter and more even paragraph/list spacing, and softer table styling.
+- **Batch conversion is now parallel** (rayon) and the bundled+system font scan is cached across the whole process — large batches are dramatically faster.
+- **Date implementation**: replaced the hand-rolled proleptic-Gregorian calendar with the `time` crate. Same behavior, less code to maintain.
+- **`output_path` simplified** — collapsed two `Io` boxing chains into one.
+
 ## [0.2.0] - 2026-05-15
 
 ### Added

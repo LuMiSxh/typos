@@ -6,7 +6,7 @@ const DEFAULT_TEMPLATE: &str = include_str!("../assets/default.typ");
 /// Assemble the full Typst source document:
 ///   1. Variable injection block (#let typos-X = ...)
 ///   2. Template (embedded default or profile override)
-///   3. Markdown content (already converted to Typst markup)
+///   3. Content (already converted to Typst markup)
 pub(crate) fn assemble(profile: &ResolvedProfile, content: &str) -> Result<String> {
     let template = load_template(profile)?;
     let vars = build_variable_block(profile);
@@ -25,7 +25,6 @@ fn load_template(profile: &ResolvedProfile) -> Result<String> {
     }
 }
 
-/// Generate the #let variable injection block from a resolved profile.
 fn build_variable_block(p: &ResolvedProfile) -> String {
     let logo_path = p.logo
         .as_ref()
@@ -33,13 +32,12 @@ fn build_variable_block(p: &ResolvedProfile) -> String {
         .unwrap_or_default();
 
     let logo_height = sanitize_length(&p.logo_height);
-    let main_font = font_name(p);
-    let mono_font = mono_font_name(p);
-
     let top_margin = sanitize_length(&p.top_margin);
     let head_height = sanitize_length(&p.head_height);
+    let main_font = font_name_from_spec(&p.main_font, "Libertinus Serif");
+    let mono_font = font_name_from_spec(&p.mono_font, "DejaVu Sans Mono");
 
-    format!(
+    let mut out = format!(
         r#"#let typos-primary = rgb("{primary}")
 #let typos-text-color = rgb("{text_color}")
 #let typos-author = "{author}"
@@ -67,7 +65,16 @@ fn build_variable_block(p: &ResolvedProfile) -> String {
         mono_font = mono_font,
         top_margin = top_margin,
         head_height = head_height,
-    )
+    );
+
+    // Custom vars: each becomes `#let typos-<key> = <typst literal>`.
+    for (k, v) in &p.vars {
+        if !is_valid_var_name(k) {
+            continue;
+        }
+        out.push_str(&format!("#let typos-{} = {}\n", k, toml_to_typst(v)));
+    }
+    out
 }
 
 fn escape_typst_string(s: &str) -> String {
@@ -86,10 +93,9 @@ fn sanitize_length(s: &str) -> &str {
 }
 
 /// Extract a Typst-safe font family name from a FontSpec.
-/// For Path variants the font bytes are loaded into the world under their
-/// embedded family name; since we don't parse the font file here we can't
-/// know that name. Users should use `FontSpec::Name` alongside a path font
-/// to specify the family name explicitly in the template.
+/// For `Path` variants the font bytes are loaded into the world under their embedded
+/// family name; since we don't parse the font file here we can't know that name, so
+/// users should pair a path font with a `Name` to specify the family explicitly.
 fn font_name_from_spec(spec: &FontSpec, fallback: &str) -> String {
     match spec {
         FontSpec::Name(name) => escape_typst_string(name),
@@ -97,10 +103,36 @@ fn font_name_from_spec(spec: &FontSpec, fallback: &str) -> String {
     }
 }
 
-fn font_name(p: &ResolvedProfile) -> String {
-    font_name_from_spec(&p.main_font, "Arial")
+/// Variable names must be ascii lowercase/digits/dash/underscore, starting with a letter.
+fn is_valid_var_name(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-fn mono_font_name(p: &ResolvedProfile) -> String {
-    font_name_from_spec(&p.mono_font, "Courier New")
+/// Render a TOML value as a Typst literal.
+fn toml_to_typst(v: &toml::Value) -> String {
+    use toml::Value;
+    match v {
+        Value::String(s) => format!("\"{}\"", escape_typst_string(s)),
+        Value::Integer(i) => i.to_string(),
+        Value::Float(f) => f.to_string(),
+        Value::Boolean(b) => b.to_string(),
+        Value::Array(arr) => {
+            let parts: Vec<String> = arr.iter().map(toml_to_typst).collect();
+            format!("({})", parts.join(", "))
+        }
+        Value::Table(t) => {
+            let parts: Vec<String> = t
+                .iter()
+                .filter(|(k, _)| is_valid_var_name(k))
+                .map(|(k, v)| format!("{}: {}", k, toml_to_typst(v)))
+                .collect();
+            format!("({})", parts.join(", "))
+        }
+        Value::Datetime(d) => format!("\"{}\"", d),
+    }
 }

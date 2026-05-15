@@ -2,9 +2,9 @@
 
 # typos
 
-**Self-contained Markdown to branded PDF converter**
+**Self-contained Markdown & Typst → branded PDF converter**
 
-Convert Markdown files to beautifully branded PDFs — no LaTeX, no Pandoc, no external tools required.
+Turn Markdown or Typst files into beautifully branded PDFs — no LaTeX, no Pandoc, no external tools.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/release/LuMiSxh/typos)](https://github.com/LuMiSxh/typos/releases)
@@ -20,7 +20,7 @@ Convert Markdown files to beautifully branded PDFs — no LaTeX, no Pandoc, no e
 ```mermaid
 graph LR
     A[typos.toml] --> B[Profile resolution]
-    C[Markdown file] --> D[Typst markup]
+    C[Markdown / Typst file] --> D[Typst markup]
     B --> E[Typst compiler]
     D --> E
     E --> F[PDF]
@@ -34,11 +34,16 @@ Define your branding (colors, logo, name, fonts) in `typos.toml` as profiles. Ru
 ## Features
 
 - **Self-contained**: single binary, zero external dependencies — no Pandoc, no LaTeX, no Node
-- **Cross-platform**: macOS, Linux, Windows
-- **Multiple profiles**: run once and output one PDF per brand in a single command
-- **Flexible fonts**: system fonts by name, or provide your own TTF/OTF file
+- **Markdown _or_ Typst input**: `.md` files are converted; `.typ` files pass straight through to the template
+- **Native math**: `$alpha$`, `$->$`, `$$E = mc^2$$` render as real Typst math, not literal text
+- **Bundled fonts**: ships with Libertinus Serif + DejaVu Sans Mono + NewCM Math — identical output on every machine
+- **Multiple profiles** with `extends` inheritance — share common settings, override per brand
+- **Per-document overrides**: TOML front-matter at the top of a file overrides profile fields just for that file
+- **Watch mode**: `typos watch path` rebuilds on every save
+- **Parallel batch**: `typos batch dir` converts a whole tree in parallel
 - **Interactive mode**: run `typos` with no arguments for a guided flow
-- **Custom templates**: override the built-in Typst layout per-profile or globally
+- **Custom templates**: replace the built-in layout per-profile or globally
+- **Cross-platform**: macOS, Linux, Windows
 
 ---
 
@@ -85,15 +90,41 @@ typos init
 # Edit typos.toml to set your profile details, then:
 typos convert report.md --profile my_brand
 
+# Open the PDF as soon as it's ready
+typos convert report.md --profile my_brand --open
+
 # Multiple profiles at once
 typos convert report.md --profile brand_a,brand_b
 
-# Batch convert a whole directory
+# Pass a .typ file directly — same template, same branding
+typos convert report.typ --profile my_brand
+
+# Batch-convert a whole directory in parallel
 typos batch ./docs --profile all
+
+# Watch a file or directory and re-convert on every change
+typos watch ./docs --profile my_brand
 
 # Interactive mode (no arguments)
 typos
 ```
+
+### Per-document overrides via front-matter
+
+Any `.md` or `.typ` file can start with a TOML front-matter block. The values override profile fields just for that document:
+
+```markdown
++++
+author = "Co-Author Name"
+header_text = "Draft — Do Not Distribute"
++++
+
+# My Report
+
+…
+```
+
+Unknown front-matter keys are exposed to your Typst template as `typos-<key>` variables.
 
 ---
 
@@ -104,8 +135,10 @@ Run `typos init` to generate a `typos.toml`, then edit it:
 ```toml
 [defaults]
 output_dir = "output"
-main_font  = "Arial"
-mono_font  = "Consolas"
+# Defaults to the bundled Libertinus Serif / DejaVu Sans Mono — works on any machine.
+# Override only if you want a different look.
+# main_font = "Inter"
+# mono_font = "JetBrains Mono"
 
 [[profiles]]
 name         = "acme"
@@ -117,9 +150,16 @@ institute     = "ACME Corporation"
 email         = "jane@acme.com"
 logo          = "assets/acme-logo.png"
 logo_height   = "1cm"
+
+# Inherit everything from "acme", override just the author
+[[profiles]]
+name    = "acme-jdoe"
+extends = "acme"
+author  = "John Doe"
+email   = "john@acme.com"
 ```
 
-For the full list of fields, font specification, length values, and how to write a custom Typst template with all available variables, see **[CONFIGURATION.md](CONFIGURATION.md)**.
+For the full list of fields, font specification, length values, `extends` semantics, custom variables (`vars`), front-matter, and how to write a custom Typst template, see **[CONFIGURATION.md](CONFIGURATION.md)**.
 
 ---
 
@@ -127,8 +167,9 @@ For the full list of fields, font specification, length values, and how to write
 
 | Command | Description |
 |---|---|
-| `typos convert <file> [--profile name,…\|all]` | Convert a single file |
-| `typos batch <dir> [--profile name,…\|all]` | Convert all .md files in a directory |
+| `typos convert <file> [--profile name,…\|all] [--open]` | Convert a single `.md`/`.typ` file |
+| `typos batch <dir> [--profile name,…\|all]` | Convert every `.md` and `.typ` under `dir` (recursive, parallel) |
+| `typos watch <path> [--profile name,…\|all]` | Watch a file or directory and re-convert on save |
 | `typos list` | List profiles from the nearest typos.toml |
 | `typos init` | Create a sample typos.toml |
 

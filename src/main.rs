@@ -3,11 +3,13 @@ mod config;
 mod convert;
 mod error;
 mod font;
+mod frontmatter;
 mod interactive;
 mod markdown;
 mod output;
 mod render;
 mod template;
+mod watch;
 mod world;
 
 use std::path::PathBuf;
@@ -36,11 +38,14 @@ fn run() -> Result<()> {
     match cli.command {
         Some(Command::Init) => cmd_init(&cwd)?,
         Some(Command::List) => cmd_list(&cwd)?,
-        Some(Command::Convert { file, profiles, output }) => {
-            cmd_convert(&cwd, file, profiles, output)?
+        Some(Command::Convert { file, profiles, output, open }) => {
+            cmd_convert(&cwd, file, profiles, output, open)?
         }
         Some(Command::Batch { dir, profiles, output }) => {
             cmd_batch(&cwd, dir, profiles, output)?
+        }
+        Some(Command::Watch { path, profiles, output }) => {
+            cmd_watch(&cwd, path, profiles, output)?
         }
         None => cmd_interactive(&cwd)?,
     }
@@ -66,6 +71,7 @@ fn cmd_convert(
     file: PathBuf,
     profile_args: Vec<String>,
     output: Option<PathBuf>,
+    open: bool,
 ) -> error::Result<()> {
     let (config_dir, cfg) = config::discover(cwd)?;
     let all_profiles = cfg.resolve(&config_dir);
@@ -83,13 +89,38 @@ fn cmd_convert(
     }
 
     let suffix = selected.len() > 1;
+    let mut produced: Vec<PathBuf> = Vec::new();
 
     for profile in &selected {
         let result = convert::convert_file(&file, profile, output.as_deref(), suffix);
         convert::print_result(&file, &profile.name, &result);
-        result?;
+        let path = result?;
+        produced.push(path);
+    }
+
+    if open {
+        for pdf in &produced {
+            if let Err(e) = opener::open(pdf) {
+                output::warn(&format!("could not open {}: {}", output::short_path(pdf), e));
+            }
+        }
     }
     Ok(())
+}
+
+fn cmd_watch(
+    cwd: &std::path::Path,
+    path: PathBuf,
+    profile_args: Vec<String>,
+    output: Option<PathBuf>,
+) -> error::Result<()> {
+    let (config_dir, cfg) = config::discover(cwd)?;
+    let all_profiles = cfg.resolve(&config_dir);
+    if all_profiles.is_empty() {
+        return Err(error::TyposError::NoProfiles);
+    }
+    let selected = resolve_profile_args(&profile_args, &all_profiles)?;
+    watch::run(&path, &selected, output.as_deref())
 }
 
 fn cmd_batch(
@@ -198,10 +229,13 @@ fn resolve_profile_args(
 }
 
 const SAMPLE_TOML: &str = r##"[defaults]
-main_font = "Arial"
-mono_font = "Consolas"
-# output_dir = "output"     # optional: set to write PDFs into a folder instead of next to the source file
-# template = "custom.typ"   # optional: override the built-in Typst template
+# Defaults apply to every profile unless overridden.
+# Fonts default to bundled Libertinus Serif + DejaVu Sans Mono — these always
+# work even on a fresh machine. Override with any system font name or a path.
+# main_font = "Libertinus Serif"
+# mono_font = "DejaVu Sans Mono"
+# output_dir = "output"     # write PDFs into this folder instead of next to the source file
+# template = "custom.typ"   # override the built-in Typst template
 
 [[profiles]]
 name = "default"

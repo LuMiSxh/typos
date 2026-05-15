@@ -91,51 +91,25 @@ impl typst::World for TyposWorld {
     }
 
     fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .ok()?;
-        // Apply UTC offset in hours
-        let secs = now.as_secs() as i64 + offset.unwrap_or(0) * 3600;
-        let days = secs.div_euclid(86400) as i32;
-
-        // Convert days since 1970-01-01 to a calendar date
-        // Using the proleptic Gregorian calendar algorithm
-        let (year, month, day) = days_since_epoch_to_ymd(days);
-        Datetime::from_ymd(year, month, day)
+        let offset_hours = offset.unwrap_or(0);
+        let utc_offset = time::UtcOffset::from_hms(offset_hours.try_into().ok()?, 0, 0).ok()?;
+        let now = time::OffsetDateTime::now_utc().to_offset(utc_offset);
+        Datetime::from_ymd(now.year(), now.month() as u8, now.day())
     }
 }
 
-/// Convert days since the Unix epoch (1970-01-01) to a (year, month, day) tuple.
-///
-/// Uses the algorithm from <https://howardhinnant.github.io/date_algorithms.html>
-/// (civil_from_days).
-fn days_since_epoch_to_ymd(z: i32) -> (i32, u8, u8) {
-    let z = z as i64 + 719468;
-    let era = z.div_euclid(146097);
-    let doe = (z - era * 146097) as u32;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let y = if m <= 2 { y + 1 } else { y };
-    (y as i32, m as u8, d as u8)
-}
+/// Cached bundled + system font scan (loaded once per process, shared across all renders).
+/// `Font` is Arc-backed internally, so cloning the Vec is cheap.
+static BASE_FONTS: std::sync::OnceLock<Vec<Font>> = std::sync::OnceLock::new();
 
-/// Collect fonts: bundled typst-assets fonts + system fonts + extra bytes from profiles.
-pub(crate) fn collect_fonts(extra_font_bytes: Vec<Vec<u8>>) -> Vec<Font> {
+fn load_base_fonts() -> Vec<Font> {
     let mut fonts = Vec::new();
-
-    // Bundled Typst fonts (required for standard library)
     for data in typst_assets::fonts() {
         let bytes = Bytes::new(data.to_vec());
         for font in Font::iter(bytes) {
             fonts.push(font);
         }
     }
-
-    // System fonts (recursively scan well-known directories)
     for dir in system_font_dirs() {
         for entry in walkdir::WalkDir::new(&dir)
             .follow_links(true)
@@ -160,14 +134,17 @@ pub(crate) fn collect_fonts(extra_font_bytes: Vec<Vec<u8>>) -> Vec<Font> {
             }
         }
     }
+    fonts
+}
 
-    // Extra (profile-specified file fonts)
+/// Collect fonts: cached (bundled typst-assets + system) + extra bytes from profile.
+pub(crate) fn collect_fonts(extra_font_bytes: Vec<Vec<u8>>) -> Vec<Font> {
+    let mut fonts = BASE_FONTS.get_or_init(load_base_fonts).clone();
     for raw in extra_font_bytes {
         for font in Font::iter(Bytes::new(raw)) {
             fonts.push(font);
         }
     }
-
     fonts
 }
 

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use crate::error::{Result, TyposError};
@@ -12,7 +13,7 @@ pub(crate) enum FontSpec {
 
 impl Default for FontSpec {
     fn default() -> Self {
-        FontSpec::Name("Arial".to_string())
+        FontSpec::Name("Libertinus Serif".to_string())
     }
 }
 
@@ -25,12 +26,15 @@ pub(crate) struct Defaults {
     pub(crate) template: Option<String>,
     pub(crate) top_margin: Option<String>,
     pub(crate) head_height: Option<String>,
+    #[serde(default)]
+    pub(crate) vars: BTreeMap<String, toml::Value>,
 }
 
 /// One [[profiles]] entry in typos.toml.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Profile {
     pub(crate) name: String,
+    pub(crate) extends: Option<String>,
     pub(crate) display_name: Option<String>,
     pub(crate) primary_color: Option<String>,
     pub(crate) text_color: Option<String>,
@@ -47,6 +51,8 @@ pub(crate) struct Profile {
     pub(crate) output_dir: Option<String>,
     pub(crate) top_margin: Option<String>,
     pub(crate) head_height: Option<String>,
+    #[serde(default)]
+    pub(crate) vars: BTreeMap<String, toml::Value>,
 }
 
 /// The full typos.toml structure.
@@ -80,6 +86,8 @@ pub(crate) struct ResolvedProfile {
     pub(crate) config_dir: PathBuf,
     pub(crate) top_margin: String,
     pub(crate) head_height: String,
+    /// Custom user-defined variables (injected as `typos-<key>` in the Typst source).
+    pub(crate) vars: BTreeMap<String, toml::Value>,
 }
 
 fn absolutise_font(spec: FontSpec, config_dir: &Path) -> FontSpec {
@@ -110,52 +118,145 @@ pub(crate) fn discover(start: &Path) -> Result<(PathBuf, TyposConfig)> {
 }
 
 impl TyposConfig {
-    /// Merge defaults into each profile and resolve all paths relative to config_dir.
+    /// Merge defaults into each profile, resolve `extends` chains, and absolutise paths.
     pub(crate) fn resolve(&self, config_dir: &Path) -> Vec<ResolvedProfile> {
-        self.profiles.iter().map(|p| {
-            let main_font = absolutise_font(
-                p.main_font.clone()
-                    .or_else(|| self.defaults.main_font.clone())
-                    .unwrap_or(FontSpec::Name("Arial".to_string())),
-                config_dir,
-            );
-            let mono_font = absolutise_font(
-                p.mono_font.clone()
-                    .or_else(|| self.defaults.mono_font.clone())
-                    .unwrap_or(FontSpec::Name("Consolas".to_string())),
-                config_dir,
-            );
-            let output_dir = p.output_dir.as_ref()
-                .or(self.defaults.output_dir.as_ref())
-                .map(|s| config_dir.join(s));
-            let template = p.template.as_ref()
-                .or(self.defaults.template.as_ref())
-                .map(|t| config_dir.join(t));
+        let by_name: std::collections::HashMap<&str, &Profile> = self
+            .profiles
+            .iter()
+            .map(|p| (p.name.as_str(), p))
+            .collect();
 
-            ResolvedProfile {
-                name: p.name.clone(),
-                display_name: p.display_name.clone().unwrap_or_else(|| p.name.clone()),
-                primary_color: p.primary_color.clone().unwrap_or_else(|| "#000000".to_string()),
-                text_color: p.text_color.clone().unwrap_or_else(|| "#000000".to_string()),
-                author: p.author.clone().unwrap_or_default(),
-                institute: p.institute.clone().unwrap_or_default(),
-                email: p.email.clone().unwrap_or_default(),
-                logo: p.logo.as_ref().map(|l| config_dir.join(l)),
-                logo_height: p.logo_height.clone().unwrap_or_else(|| "1cm".to_string()),
-                header_text: p.header_text.clone().unwrap_or_default(),
-                header_text_color: p.header_text_color.clone().unwrap_or_else(|| "#000000".to_string()),
-                main_font,
-                mono_font,
-                template,
-                output_dir,
-                config_dir: config_dir.to_path_buf(),
-                top_margin: p.top_margin.clone()
-                    .or_else(|| self.defaults.top_margin.clone())
-                    .unwrap_or_else(|| "3cm".to_string()),
-                head_height: p.head_height.clone()
-                    .or_else(|| self.defaults.head_height.clone())
-                    .unwrap_or_else(|| "1.3cm".to_string()),
+        self.profiles
+            .iter()
+            .map(|p| self.resolve_one(p, &by_name, config_dir))
+            .collect()
+    }
+
+    fn resolve_one(
+        &self,
+        leaf: &Profile,
+        by_name: &std::collections::HashMap<&str, &Profile>,
+        config_dir: &Path,
+    ) -> ResolvedProfile {
+        let mut chain: Vec<&Profile> = vec![leaf];
+        let mut seen: std::collections::HashSet<&str> =
+            std::iter::once(leaf.name.as_str()).collect();
+        let mut cursor = leaf;
+        while let Some(parent_name) = cursor.extends.as_deref() {
+            let Some(parent) = by_name.get(parent_name) else { break };
+            if !seen.insert(parent_name) {
+                break;
             }
-        }).collect()
+            chain.push(parent);
+            cursor = parent;
+        }
+
+        macro_rules! pick {
+            ($field:ident) => {
+                chain.iter().find_map(|p| p.$field.clone())
+            };
+        }
+
+        let main_font = absolutise_font(
+            pick!(main_font)
+                .or_else(|| self.defaults.main_font.clone())
+                .unwrap_or(FontSpec::Name("Arial".to_string())),
+            config_dir,
+        );
+        let mono_font = absolutise_font(
+            pick!(mono_font)
+                .or_else(|| self.defaults.mono_font.clone())
+                .unwrap_or(FontSpec::Name("DejaVu Sans Mono".to_string())),
+            config_dir,
+        );
+        let output_dir = pick!(output_dir)
+            .or_else(|| self.defaults.output_dir.clone())
+            .map(|s| config_dir.join(s));
+        let template = pick!(template)
+            .or_else(|| self.defaults.template.clone())
+            .map(|t| config_dir.join(t));
+
+        // Merge custom vars: defaults → root → ... → leaf (later overrides earlier).
+        let mut vars: BTreeMap<String, toml::Value> = self.defaults.vars.clone();
+        for p in chain.iter().rev() {
+            for (k, v) in &p.vars {
+                vars.insert(k.clone(), v.clone());
+            }
+        }
+
+        ResolvedProfile {
+            name: leaf.name.clone(),
+            display_name: pick!(display_name).unwrap_or_else(|| leaf.name.clone()),
+            primary_color: pick!(primary_color).unwrap_or_else(|| "#000000".to_string()),
+            text_color: pick!(text_color).unwrap_or_else(|| "#000000".to_string()),
+            author: pick!(author).unwrap_or_default(),
+            institute: pick!(institute).unwrap_or_default(),
+            email: pick!(email).unwrap_or_default(),
+            logo: pick!(logo).map(|l| config_dir.join(l)),
+            logo_height: pick!(logo_height).unwrap_or_else(|| "1cm".to_string()),
+            header_text: pick!(header_text).unwrap_or_default(),
+            header_text_color: pick!(header_text_color).unwrap_or_else(|| "#000000".to_string()),
+            main_font,
+            mono_font,
+            template,
+            output_dir,
+            config_dir: config_dir.to_path_buf(),
+            top_margin: pick!(top_margin)
+                .or_else(|| self.defaults.top_margin.clone())
+                .unwrap_or_else(|| "3cm".to_string()),
+            head_height: pick!(head_height)
+                .or_else(|| self.defaults.head_height.clone())
+                .unwrap_or_else(|| "1.3cm".to_string()),
+            vars,
+        }
+    }
+}
+
+impl ResolvedProfile {
+    /// Apply a flat set of overrides (e.g. front-matter) on top of this profile.
+    /// Known keys override the matching profile field; unknown keys go into `vars`.
+    pub(crate) fn with_overrides(mut self, overrides: &BTreeMap<String, toml::Value>) -> Self {
+        use toml::Value;
+        fn as_str(v: &Value) -> Option<String> {
+            match v {
+                Value::String(s) => Some(s.clone()),
+                Value::Integer(i) => Some(i.to_string()),
+                Value::Float(f) => Some(f.to_string()),
+                Value::Boolean(b) => Some(b.to_string()),
+                _ => None,
+            }
+        }
+
+        macro_rules! string_fields {
+            ($($field:ident),* $(,)?) => {
+                |k: &str, v: &Value, this: &mut ResolvedProfile| -> bool {
+                    match k {
+                        $(stringify!($field) => {
+                            if let Some(s) = as_str(v) { this.$field = s; }
+                            true
+                        })*
+                        _ => false,
+                    }
+                }
+            };
+        }
+        let try_set = string_fields!(
+            display_name, primary_color, text_color, author, institute, email,
+            logo_height, header_text, header_text_color, top_margin, head_height,
+        );
+
+        for (k, v) in overrides {
+            if try_set(k, v, &mut self) {
+                continue;
+            }
+            if k == "logo" {
+                if let Some(s) = as_str(v) {
+                    self.logo = Some(self.config_dir.join(s));
+                }
+                continue;
+            }
+            self.vars.insert(k.clone(), v.clone());
+        }
+        self
     }
 }
