@@ -133,31 +133,33 @@ Unknown front-matter keys are exposed to your Typst template as `typos-<key>` va
 Run `typos init` to generate a `typos.toml`, then edit it:
 
 ```toml
-[defaults]
-output_dir = "output"
-# Defaults to the bundled Libertinus Serif / DejaVu Sans Mono — works on any machine.
-# Override only if you want a different look.
-# main_font = "Inter"
-# mono_font = "JetBrains Mono"
-
 [[profiles]]
-name         = "acme"
-display_name = "ACME Corp"
-primary_color = "#E63946"
-text_color    = "#1D3557"
-author        = "Jane Smith"
-institute     = "ACME Corporation"
-email         = "jane@acme.com"
-logo          = "assets/acme-logo.png"
-logo_height   = "1cm"
+name = "acme"
 
-# Inherit everything from "acme", override just the author
+[profiles.identity]
+display_name = "ACME Corp"
+author       = "Jane Smith"
+institute    = "ACME Corporation"
+email        = "jane@acme.com"
+
+[profiles.colors]
+primary = "#E63946"
+text    = "#1D3557"
+heading = "$colors.primary"   # variable reference — heading tracks primary
+
+[profiles.layout]
+logo = "assets/acme-logo.png"
+
+# Inherit everything from "acme" and override just the identity
 [[profiles]]
 name    = "acme-jdoe"
 extends = "acme"
-author  = "John Doe"
-email   = "john@acme.com"
+[profiles.identity]
+author = "John Doe"
+email  = "john@acme.com"
 ```
+
+Every field is optional. Anything you don't set uses the built-in default. Use `$section.field` anywhere to reference another field from the same profile.
 
 For the full list of fields, font specification, length values, `extends` semantics, custom variables (`vars`), front-matter, and how to write a custom Typst template, see **[CONFIGURATION.md](CONFIGURATION.md)**.
 

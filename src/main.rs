@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod convert;
+mod defaults;
 mod error;
 mod font;
 mod frontmatter;
@@ -61,7 +62,7 @@ fn cmd_list(cwd: &std::path::Path) -> error::Result<()> {
     }
     output::header("Profiles");
     for p in &profiles {
-        output::info(&format!("{} — {}", p.name, p.display_name));
+        output::info(&format!("{} — {}", p.name, p.identity.display_name));
     }
     Ok(())
 }
@@ -228,23 +229,39 @@ fn resolve_profile_args(
     Ok(result)
 }
 
-const SAMPLE_TOML: &str = r##"[defaults]
-# Defaults apply to every profile unless overridden.
-# Fonts default to bundled Libertinus Serif + DejaVu Sans Mono — these always
-# work even on a fresh machine. Override with any system font name or a path.
-# main_font = "Libertinus Serif"
-# mono_font = "DejaVu Sans Mono"
-# output_dir = "output"     # write PDFs into this folder instead of next to the source file
-# template = "custom.typ"   # override the built-in Typst template
+const SAMPLE_TOML: &str = r##"# typos uses a nested config: every profile groups its settings under
+# `[profiles.<section>]` tables. Everything is optional — leave a field out
+# and the built-in default is used. Use `$section.field` anywhere to reference
+# another field from the same profile (e.g. heading = "$colors.text").
+
+[defaults]
+# Defaults apply to every profile unless that profile overrides them.
+# [defaults.layout]
+# output_dir = "output"     # write PDFs into this folder instead of next to the source
+# template   = "custom.typ" # override the built-in template
 
 [[profiles]]
 name = "default"
+
+[profiles.identity]
 display_name = "Default Profile"
-primary_color = "#000000"
-text_color = "#000000"
-author = "Your Name"
-institute = "Your Organisation"
-email = "you@example.com"
+author       = "Your Name"
+institute    = "Your Organisation"
+email        = "you@example.com"
+
+[profiles.colors]
+primary = "#000000"
+text    = "#000000"
+# heading  = "$colors.text"      # derived defaults — uncomment to override
+# link     = "$colors.primary"
+
+[profiles.layout]
 # logo = "assets/logo.png"
-logo_height = "1cm"
+
+# Inherit everything from "default" and override just one field:
+# [[profiles]]
+# name    = "default-bold"
+# extends = "default"
+# [profiles.colors]
+# primary = "#E63946"
 "##;

@@ -1,12 +1,13 @@
 use crate::config::{FontSpec, ResolvedProfile};
 use crate::error::{Result, TyposError};
+use crate::defaults;
 
 const DEFAULT_TEMPLATE: &str = include_str!("../assets/default.typ");
 
 /// Assemble the full Typst source document:
-///   1. Variable injection block (#let typos-X = ...)
+///   1. Variable injection block (every `typos-<section>-<field>` binding)
 ///   2. Template (embedded default or profile override)
-///   3. Content (already converted to Typst markup)
+///   3. Content (already Typst markup)
 pub(crate) fn assemble(profile: &ResolvedProfile, content: &str) -> Result<String> {
     let template = load_template(profile)?;
     let vars = build_variable_block(profile);
@@ -14,7 +15,7 @@ pub(crate) fn assemble(profile: &ResolvedProfile, content: &str) -> Result<Strin
 }
 
 fn load_template(profile: &ResolvedProfile) -> Result<String> {
-    match &profile.template {
+    match &profile.layout.template {
         Some(path) => {
             if !path.exists() {
                 return Err(TyposError::TemplateNotFound(path.clone()));
@@ -25,85 +26,116 @@ fn load_template(profile: &ResolvedProfile) -> Result<String> {
     }
 }
 
+/// Build the `#let typos-...` injection block. Each emitted binding is
+/// `typos-<section>-<field>`, typed appropriately (colors as `rgb(...)`,
+/// lengths as raw literals, strings quoted, fonts as quoted strings).
 fn build_variable_block(p: &ResolvedProfile) -> String {
-    let logo_path = p.logo
-        .as_ref()
-        .map(|l| escape_typst_string(&l.to_string_lossy()))
-        .unwrap_or_default();
+    let mut out = String::with_capacity(2048);
 
-    let logo_height = sanitize_length(&p.logo_height);
-    let top_margin = sanitize_length(&p.top_margin);
-    let head_height = sanitize_length(&p.head_height);
-    let main_font = font_name_from_spec(&p.main_font, "Libertinus Serif");
-    let mono_font = font_name_from_spec(&p.mono_font, "DejaVu Sans Mono");
-
-    let mut out = format!(
-        r#"#let typos-primary = rgb("{primary}")
-#let typos-text-color = rgb("{text_color}")
-#let typos-author = "{author}"
-#let typos-institute = "{institute}"
-#let typos-email = "{email}"
-#let typos-logo-path = "{logo_path}"
-#let typos-logo-height = {logo_height}
-#let typos-header-text = "{header_text}"
-#let typos-header-text-color = rgb("{header_text_color}")
-#let typos-main-font = "{main_font}"
-#let typos-mono-font = "{mono_font}"
-#let typos-top-margin = {top_margin}
-#let typos-head-height = {head_height}
-"#,
-        primary = p.primary_color.trim_start_matches('#'),
-        text_color = p.text_color.trim_start_matches('#'),
-        author = escape_typst_string(&p.author),
-        institute = escape_typst_string(&p.institute),
-        email = escape_typst_string(&p.email),
-        logo_path = logo_path,
-        logo_height = logo_height,
-        header_text = escape_typst_string(&p.header_text),
-        header_text_color = p.header_text_color.trim_start_matches('#'),
-        main_font = main_font,
-        mono_font = mono_font,
-        top_margin = top_margin,
-        head_height = head_height,
+    // Strings — identity + free-form layout text.
+    write_str(&mut out, "identity-display-name", &p.identity.display_name);
+    write_str(&mut out, "identity-author", &p.identity.author);
+    write_str(&mut out, "identity-institute", &p.identity.institute);
+    write_str(&mut out, "identity-email", &p.identity.email);
+    write_str(&mut out, "layout-header-text", &p.layout.header_text);
+    write_str(
+        &mut out,
+        "layout-logo-path",
+        &p.layout
+            .logo
+            .as_ref()
+            .map(|l| l.to_string_lossy().into_owned())
+            .unwrap_or_default(),
     );
 
-    // Custom vars: each becomes `#let typos-<key> = <typst literal>`.
+    // Fonts (font family name as quoted string).
+    write_str(&mut out, "fonts-main", &font_name(&p.fonts.main, defaults::FONT_MAIN));
+    write_str(&mut out, "fonts-mono", &font_name(&p.fonts.mono, defaults::FONT_MONO));
+
+    // Colors — hex strings become `rgb("...")`.
+    write_color(&mut out, "colors-primary", &p.colors.primary);
+    write_color(&mut out, "colors-text", &p.colors.text);
+    write_color(&mut out, "colors-heading", &p.colors.heading);
+    write_color(&mut out, "colors-link", &p.colors.link);
+    write_color(&mut out, "colors-rule", &p.colors.rule);
+    write_color(&mut out, "colors-header-label", &p.colors.header_label);
+    write_color(&mut out, "colors-code-fill", &p.colors.code_fill);
+    write_color(&mut out, "colors-code-border", &p.colors.code_border);
+    write_color(&mut out, "colors-code-inline-fill", &p.colors.code_inline_fill);
+    write_color(&mut out, "colors-quote-fill", &p.colors.quote_fill);
+    write_color(&mut out, "colors-quote-border", &p.colors.quote_border);
+    write_color(&mut out, "colors-table-stroke", &p.colors.table_stroke);
+    write_color(&mut out, "colors-table-alt-fill", &p.colors.table_alt_fill);
+
+    // Sizes / spacing — written as raw Typst length literals after sanitation.
+    write_length(&mut out, "sizes-body", &p.sizes.body);
+    write_length(&mut out, "sizes-code", &p.sizes.code);
+    write_length(&mut out, "sizes-top-margin", &p.sizes.top_margin);
+    write_length(&mut out, "sizes-side-margin", &p.sizes.side_margin);
+    write_length(&mut out, "sizes-bottom-margin", &p.sizes.bottom_margin);
+    write_length(&mut out, "sizes-head-height", &p.sizes.head_height);
+    write_length(&mut out, "sizes-logo-height", &p.sizes.logo_height);
+    write_length(&mut out, "sizes-par-leading", &p.sizes.par_leading);
+    write_length(&mut out, "sizes-par-spacing", &p.sizes.par_spacing);
+    write_length(&mut out, "sizes-list-indent", &p.sizes.list_indent);
+    write_length(&mut out, "sizes-list-spacing", &p.sizes.list_spacing);
+    write_length(&mut out, "sizes-heading-above", &p.sizes.heading_above);
+    write_length(&mut out, "sizes-heading-below", &p.sizes.heading_below);
+    write_length(&mut out, "sizes-h1", &p.sizes.h1);
+    write_length(&mut out, "sizes-h2", &p.sizes.h2);
+    write_length(&mut out, "sizes-h3", &p.sizes.h3);
+    write_length(&mut out, "sizes-h4", &p.sizes.h4);
+
+    // Custom vars become `typos-<key>` with TOML-aware literal rendering.
     for (k, v) in &p.vars {
-        if !is_valid_var_name(k) {
-            continue;
+        if is_valid_var_name(k) {
+            out.push_str(&format!("#let typos-{} = {}\n", k, toml_to_typst(v)));
         }
-        out.push_str(&format!("#let typos-{} = {}\n", k, toml_to_typst(v)));
     }
+
     out
 }
+
+// ── Writers ─────────────────────────────────────────────────────────────────
+
+fn write_str(out: &mut String, name: &str, value: &str) {
+    out.push_str(&format!("#let typos-{} = \"{}\"\n", name, escape_typst_string(value)));
+}
+
+fn write_color(out: &mut String, name: &str, hex: &str) {
+    let cleaned = hex.trim_start_matches('#');
+    out.push_str(&format!("#let typos-{} = rgb(\"{}\")\n", name, cleaned));
+}
+
+fn write_length(out: &mut String, name: &str, value: &str) {
+    out.push_str(&format!("#let typos-{} = {}\n", name, sanitize_length(value)));
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 fn escape_typst_string(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-/// Sanitize a CSS/LaTeX length string for safe use as a Typst literal.
-/// Accepts only digits, dots, and ASCII letters (e.g. "1cm", "2.5cm", "10mm").
-fn sanitize_length(s: &str) -> &str {
-    let s = s.trim();
-    if s.chars().all(|c| c.is_ascii_digit() || c == '.' || c.is_ascii_alphabetic()) {
-        s
+/// Accept only digits, dots, and ASCII letters (e.g. "1cm", "0.65em", "10pt"),
+/// fall back to a safe literal when the input contains anything else.
+fn sanitize_length(s: &str) -> String {
+    let t = s.trim();
+    if !t.is_empty() && t.chars().all(|c| c.is_ascii_digit() || c == '.' || c.is_ascii_alphabetic())
+    {
+        t.to_string()
     } else {
-        "1cm"
+        "1cm".to_string()
     }
 }
 
-/// Extract a Typst-safe font family name from a FontSpec.
-/// For `Path` variants the font bytes are loaded into the world under their embedded
-/// family name; since we don't parse the font file here we can't know that name, so
-/// users should pair a path font with a `Name` to specify the family explicitly.
-fn font_name_from_spec(spec: &FontSpec, fallback: &str) -> String {
+fn font_name(spec: &FontSpec, fallback: &str) -> String {
     match spec {
         FontSpec::Name(name) => escape_typst_string(name),
         FontSpec::Path { .. } => fallback.to_string(),
     }
 }
 
-/// Variable names must be ascii lowercase/digits/dash/underscore, starting with a letter.
 fn is_valid_var_name(s: &str) -> bool {
     let mut chars = s.chars();
     match chars.next() {
@@ -113,7 +145,6 @@ fn is_valid_var_name(s: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-/// Render a TOML value as a Typst literal.
 fn toml_to_typst(v: &toml::Value) -> String {
     use toml::Value;
     match v {

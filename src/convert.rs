@@ -15,8 +15,8 @@ pub(crate) fn convert_file(
     suffix_profile_name: bool,
 ) -> Result<PathBuf> {
     let source = std::fs::read_to_string(src_path)?;
-    let (overrides, body) = frontmatter::split(&source);
-    let effective_profile = profile.clone().with_overrides(&overrides);
+    let (fm_overrides, body) = frontmatter::split(&source);
+    let effective_profile = profile.clone().with_overrides(&fm_overrides);
 
     let typst_content = match source_kind(src_path) {
         SourceKind::Typst => body.to_string(),
@@ -135,6 +135,7 @@ fn output_path(
     };
 
     let dir = profile
+        .layout
         .output_dir
         .as_deref()
         .unwrap_or_else(|| src_path.parent().unwrap_or(Path::new(".")));

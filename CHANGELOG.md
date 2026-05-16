@@ -7,6 +7,33 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-16
+
+### Added
+
+- **Fully customizable theme**: every color, size, and spacing value in the built-in template is now an optional profile field. ~30 new keys grouped into sections (`identity`, `colors`, `sizes`, `fonts`, `layout`) — leave them out and the built-in default is used.
+- **`$section.field` variable references** in any string value. Example: `heading = "$colors.text"` means "track the body text color". Derived defaults (`link → primary`, `rule → primary`, `quote_border → primary`, `heading → text`) use this mechanism, so changing one root color propagates automatically.
+- **`src/defaults.rs`**: single source of truth for every default value. No more duplicate string literals scattered across resolver, template, sample TOML, and docs.
+
+### Changed
+
+- **TOML schema restructured into nested sections** (breaking change vs. 0.3.0):
+  ```toml
+  [[profiles]]
+  name = "luca"
+  [profiles.identity]
+  author = "Luca Schmidt"
+  [profiles.colors]
+  primary = "#ED1B24"
+  text    = "#000000"
+  [profiles.sizes]
+  top_margin = "3cm"
+  ```
+  Old flat keys (`primary_color`, `text_color`, `top_margin`, etc.) are gone — section paths replace them. Front-matter accepts the same nested shape (or dotted keys: `colors.primary = "..."`).
+- **Template weights softened**: headings and `**strong**` text both render at `semibold` instead of `bold` for a more refined look on Libertinus Serif. Headings now use `text` color by default (overridable to any color including `$colors.primary` for branded headings).
+- **Front-matter parser** now deserializes into the same `Profile` struct as `[[profiles]]`, so every theme field is overridable per-document.
+- **`extends` semantics** updated to work at section/field granularity: missing fields walk the chain, mixed defaults compose cleanly.
+
 ## [0.3.0] - 2026-05-15
 
 ### Added
@@ -21,7 +48,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - **Default fonts switched to bundled**: `main_font` defaults to `"Libertinus Serif"`, `mono_font` to `"DejaVu Sans Mono"` (both shipped inside the binary). Identical, predictable output on every machine — no more "font not found" surprises when system Arial/Consolas are missing.
-- **Built-in template redesigned**: uniform bold-only heading weights with a cleaner size scale (17/14/12/11 pt), primary-tinted headings, larger code blocks (9.5 pt), inline code at relative size (0.92 em), tighter and more even paragraph/list spacing, and softer table styling.
+- **Built-in template redesigned**: uniform bold-only heading weights with a cleaner size scale (17/14/12/11 pt), headings in body text color (safe for any brand palette), larger code blocks (9.5 pt), inline code at relative size (0.92 em), tighter and more even paragraph/list spacing, and softer table styling.
 - **Batch conversion is now parallel** (rayon) and the bundled+system font scan is cached across the whole process — large batches are dramatically faster.
 - **Date implementation**: replaced the hand-rolled proleptic-Gregorian calendar with the `time` crate. Same behavior, less code to maintain.
 - **`output_path` simplified** — collapsed two `Io` boxing chains into one.

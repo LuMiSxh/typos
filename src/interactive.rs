@@ -14,7 +14,7 @@ pub(crate) fn pick_profiles(profiles: &[ResolvedProfile]) -> Result<Vec<&Resolve
     }
 
     let names: Vec<String> = profiles.iter()
-        .map(|p| format!("{} ({})", p.display_name, p.name))
+        .map(|p| format!("{} ({})", p.identity.display_name, p.name))
         .collect();
 
     let selections = MultiSelect::with_theme(&ColorfulTheme::default())
@@ -67,7 +67,7 @@ pub(crate) fn guided_flow(profiles: &[ResolvedProfile]) -> Result<GuidedAction> 
     let path = PathBuf::from(path_str.trim());
 
     let profile_names: Vec<String> = profiles.iter()
-        .map(|p| format!("{} ({})", p.display_name, p.name))
+        .map(|p| format!("{} ({})", p.identity.display_name, p.name))
         .collect();
 
     let selected = MultiSelect::with_theme(&ColorfulTheme::default())

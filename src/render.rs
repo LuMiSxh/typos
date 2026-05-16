@@ -12,7 +12,7 @@ pub(crate) fn render(typst_content: &str, profile: &ResolvedProfile) -> Result<V
     let source = template::assemble(profile, typst_content)?;
 
     let mut extra_font_bytes: Vec<Vec<u8>> = Vec::new();
-    for font_spec in [&profile.main_font, &profile.mono_font] {
+    for font_spec in [&profile.fonts.main, &profile.fonts.mono] {
         match resolve_font(font_spec, &profile.config_dir)? {
             ResolvedFont::SystemName => {}
             ResolvedFont::Bytes(bytes) => extra_font_bytes.push(bytes),
@@ -20,7 +20,7 @@ pub(crate) fn render(typst_content: &str, profile: &ResolvedProfile) -> Result<V
     }
 
     let mut files: HashMap<String, Vec<u8>> = HashMap::new();
-    if let Some(logo_path) = &profile.logo
+    if let Some(logo_path) = &profile.layout.logo
         && logo_path.is_file()
     {
         let bytes = std::fs::read(logo_path)?;

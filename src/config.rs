@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use serde::Deserialize;
+use crate::defaults::*;
 use crate::error::{Result, TyposError};
 
 /// Font specification: either a system-installed font name or a path to a font file.
@@ -13,49 +14,110 @@ pub(crate) enum FontSpec {
 
 impl Default for FontSpec {
     fn default() -> Self {
-        FontSpec::Name("Libertinus Serif".to_string())
+        FontSpec::Name(FONT_MAIN.to_string())
     }
 }
 
-/// The [defaults] section — values applied to all profiles unless overridden.
-#[derive(Debug, Clone, Deserialize, Default)]
-pub(crate) struct Defaults {
-    pub(crate) output_dir: Option<String>,
-    pub(crate) main_font: Option<FontSpec>,
-    pub(crate) mono_font: Option<FontSpec>,
-    pub(crate) template: Option<String>,
-    pub(crate) top_margin: Option<String>,
-    pub(crate) head_height: Option<String>,
-    #[serde(default)]
-    pub(crate) vars: BTreeMap<String, toml::Value>,
-}
+// ═══ TOML schema (input) ════════════════════════════════════════════════════
 
-/// One [[profiles]] entry in typos.toml.
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct Profile {
-    pub(crate) name: String,
-    pub(crate) extends: Option<String>,
+#[derive(Debug, Clone, Deserialize, Default)]
+pub(crate) struct IdentitySection {
     pub(crate) display_name: Option<String>,
-    pub(crate) primary_color: Option<String>,
-    pub(crate) text_color: Option<String>,
     pub(crate) author: Option<String>,
     pub(crate) institute: Option<String>,
     pub(crate) email: Option<String>,
-    pub(crate) logo: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub(crate) struct ColorsSection {
+    pub(crate) primary: Option<String>,
+    pub(crate) text: Option<String>,
+    pub(crate) heading: Option<String>,
+    pub(crate) link: Option<String>,
+    pub(crate) rule: Option<String>,
+    pub(crate) header_label: Option<String>,
+    pub(crate) code_fill: Option<String>,
+    pub(crate) code_border: Option<String>,
+    pub(crate) code_inline_fill: Option<String>,
+    pub(crate) quote_fill: Option<String>,
+    pub(crate) quote_border: Option<String>,
+    pub(crate) table_stroke: Option<String>,
+    pub(crate) table_alt_fill: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub(crate) struct SizesSection {
+    pub(crate) body: Option<String>,
+    pub(crate) code: Option<String>,
+    pub(crate) top_margin: Option<String>,
+    pub(crate) side_margin: Option<String>,
+    pub(crate) bottom_margin: Option<String>,
+    pub(crate) head_height: Option<String>,
     pub(crate) logo_height: Option<String>,
+    pub(crate) par_leading: Option<String>,
+    pub(crate) par_spacing: Option<String>,
+    pub(crate) list_indent: Option<String>,
+    pub(crate) list_spacing: Option<String>,
+    pub(crate) heading_above: Option<String>,
+    pub(crate) heading_below: Option<String>,
+    pub(crate) h1: Option<String>,
+    pub(crate) h2: Option<String>,
+    pub(crate) h3: Option<String>,
+    pub(crate) h4: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub(crate) struct FontsSection {
+    pub(crate) main: Option<FontSpec>,
+    pub(crate) mono: Option<FontSpec>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub(crate) struct LayoutSection {
+    pub(crate) logo: Option<String>,
     pub(crate) header_text: Option<String>,
-    pub(crate) header_text_color: Option<String>,
-    pub(crate) main_font: Option<FontSpec>,
-    pub(crate) mono_font: Option<FontSpec>,
     pub(crate) template: Option<String>,
     pub(crate) output_dir: Option<String>,
-    pub(crate) top_margin: Option<String>,
-    pub(crate) head_height: Option<String>,
+}
+
+/// `[defaults]` table — applied to every profile unless the profile overrides it.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub(crate) struct Defaults {
+    #[serde(default)]
+    pub(crate) identity: IdentitySection,
+    #[serde(default)]
+    pub(crate) colors: ColorsSection,
+    #[serde(default)]
+    pub(crate) sizes: SizesSection,
+    #[serde(default)]
+    pub(crate) fonts: FontsSection,
+    #[serde(default)]
+    pub(crate) layout: LayoutSection,
     #[serde(default)]
     pub(crate) vars: BTreeMap<String, toml::Value>,
 }
 
-/// The full typos.toml structure.
+/// One `[[profiles]]` entry. Also used as the front-matter shape (where
+/// `name`/`extends` are unused but the section fields override the profile).
+#[derive(Debug, Clone, Deserialize, Default)]
+pub(crate) struct Profile {
+    #[serde(default)]
+    pub(crate) name: String,
+    pub(crate) extends: Option<String>,
+    #[serde(default)]
+    pub(crate) identity: IdentitySection,
+    #[serde(default)]
+    pub(crate) colors: ColorsSection,
+    #[serde(default)]
+    pub(crate) sizes: SizesSection,
+    #[serde(default)]
+    pub(crate) fonts: FontsSection,
+    #[serde(default)]
+    pub(crate) layout: LayoutSection,
+    #[serde(default)]
+    pub(crate) vars: BTreeMap<String, toml::Value>,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 pub(crate) struct TyposConfig {
     #[serde(default)]
@@ -64,43 +126,84 @@ pub(crate) struct TyposConfig {
     pub(crate) profiles: Vec<Profile>,
 }
 
-/// All fields resolved (defaults merged in, paths made absolute).
+// ═══ Resolved profile (output) ══════════════════════════════════════════════
+
 #[derive(Debug, Clone)]
-pub(crate) struct ResolvedProfile {
-    pub(crate) name: String,
+pub(crate) struct Identity {
     pub(crate) display_name: String,
-    pub(crate) primary_color: String,
-    pub(crate) text_color: String,
     pub(crate) author: String,
     pub(crate) institute: String,
     pub(crate) email: String,
-    pub(crate) logo: Option<PathBuf>,
-    pub(crate) logo_height: String,
-    pub(crate) header_text: String,
-    pub(crate) header_text_color: String,
-    pub(crate) main_font: FontSpec,
-    pub(crate) mono_font: FontSpec,
-    pub(crate) template: Option<PathBuf>,
-    /// None = write PDF next to the source file; Some = explicit directory
-    pub(crate) output_dir: Option<PathBuf>,
-    pub(crate) config_dir: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Colors {
+    pub(crate) primary: String,
+    pub(crate) text: String,
+    pub(crate) heading: String,
+    pub(crate) link: String,
+    pub(crate) rule: String,
+    pub(crate) header_label: String,
+    pub(crate) code_fill: String,
+    pub(crate) code_border: String,
+    pub(crate) code_inline_fill: String,
+    pub(crate) quote_fill: String,
+    pub(crate) quote_border: String,
+    pub(crate) table_stroke: String,
+    pub(crate) table_alt_fill: String,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Sizes {
+    pub(crate) body: String,
+    pub(crate) code: String,
     pub(crate) top_margin: String,
+    pub(crate) side_margin: String,
+    pub(crate) bottom_margin: String,
     pub(crate) head_height: String,
-    /// Custom user-defined variables (injected as `typos-<key>` in the Typst source).
+    pub(crate) logo_height: String,
+    pub(crate) par_leading: String,
+    pub(crate) par_spacing: String,
+    pub(crate) list_indent: String,
+    pub(crate) list_spacing: String,
+    pub(crate) heading_above: String,
+    pub(crate) heading_below: String,
+    pub(crate) h1: String,
+    pub(crate) h2: String,
+    pub(crate) h3: String,
+    pub(crate) h4: String,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Fonts {
+    pub(crate) main: FontSpec,
+    pub(crate) mono: FontSpec,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Layout {
+    pub(crate) logo: Option<PathBuf>,
+    pub(crate) header_text: String,
+    pub(crate) template: Option<PathBuf>,
+    /// `None` = write PDF next to the source file
+    pub(crate) output_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ResolvedProfile {
+    pub(crate) name: String,
+    pub(crate) identity: Identity,
+    pub(crate) colors: Colors,
+    pub(crate) sizes: Sizes,
+    pub(crate) fonts: Fonts,
+    pub(crate) layout: Layout,
+    pub(crate) config_dir: PathBuf,
+    /// Custom user-defined variables (injected as `typos-<key>`).
     pub(crate) vars: BTreeMap<String, toml::Value>,
 }
 
-fn absolutise_font(spec: FontSpec, config_dir: &Path) -> FontSpec {
-    match spec {
-        FontSpec::Path { path } => FontSpec::Path {
-            path: config_dir.join(&path).to_string_lossy().into_owned(),
-        },
-        other => other,
-    }
-}
+// ═══ Discovery ══════════════════════════════════════════════════════════════
 
-/// Walk up from `start` until a `typos.toml` is found.
-/// Returns (config_dir, parsed config) or Err if not found.
 pub(crate) fn discover(start: &Path) -> Result<(PathBuf, TyposConfig)> {
     let mut dir = start.canonicalize().unwrap_or_else(|_| start.to_path_buf());
     loop {
@@ -117,15 +220,35 @@ pub(crate) fn discover(start: &Path) -> Result<(PathBuf, TyposConfig)> {
     Err(TyposError::ConfigNotFound(start.to_path_buf()))
 }
 
-impl TyposConfig {
-    /// Merge defaults into each profile, resolve `extends` chains, and absolutise paths.
-    pub(crate) fn resolve(&self, config_dir: &Path) -> Vec<ResolvedProfile> {
-        let by_name: std::collections::HashMap<&str, &Profile> = self
-            .profiles
-            .iter()
-            .map(|p| (p.name.as_str(), p))
-            .collect();
+// ═══ Resolution ═════════════════════════════════════════════════════════════
 
+/// Resolve a single string field by walking the `extends` chain, then falling
+/// back to defaults, then to the supplied constant.
+macro_rules! resolve_str {
+    ($chain:expr, $defaults:expr, $section:ident.$field:ident, $fallback:expr) => {{
+        $chain
+            .iter()
+            .find_map(|p: &&Profile| p.$section.$field.clone())
+            .or_else(|| $defaults.$section.$field.clone())
+            .unwrap_or_else(|| $fallback.to_string())
+    }};
+}
+
+/// Same pattern but for `Option<FontSpec>`.
+macro_rules! resolve_font {
+    ($chain:expr, $defaults:expr, $section:ident.$field:ident, $fallback:expr) => {{
+        $chain
+            .iter()
+            .find_map(|p: &&Profile| p.$section.$field.clone())
+            .or_else(|| $defaults.$section.$field.clone())
+            .unwrap_or_else(|| FontSpec::Name($fallback.to_string()))
+    }};
+}
+
+impl TyposConfig {
+    pub(crate) fn resolve(&self, config_dir: &Path) -> Vec<ResolvedProfile> {
+        let by_name: std::collections::HashMap<&str, &Profile> =
+            self.profiles.iter().map(|p| (p.name.as_str(), p)).collect();
         self.profiles
             .iter()
             .map(|p| self.resolve_one(p, &by_name, config_dir))
@@ -138,6 +261,7 @@ impl TyposConfig {
         by_name: &std::collections::HashMap<&str, &Profile>,
         config_dir: &Path,
     ) -> ResolvedProfile {
+        // Build the extends chain leaf → root, stopping on cycles or missing parents.
         let mut chain: Vec<&Profile> = vec![leaf];
         let mut seen: std::collections::HashSet<&str> =
             std::iter::once(leaf.name.as_str()).collect();
@@ -150,113 +274,230 @@ impl TyposConfig {
             chain.push(parent);
             cursor = parent;
         }
+        let d = &self.defaults;
 
-        macro_rules! pick {
-            ($field:ident) => {
-                chain.iter().find_map(|p| p.$field.clone())
-            };
-        }
+        let identity = Identity {
+            display_name: resolve_str!(chain, d, identity.display_name, &leaf.name),
+            author: resolve_str!(chain, d, identity.author, AUTHOR),
+            institute: resolve_str!(chain, d, identity.institute, INSTITUTE),
+            email: resolve_str!(chain, d, identity.email, EMAIL),
+        };
 
-        let main_font = absolutise_font(
-            pick!(main_font)
-                .or_else(|| self.defaults.main_font.clone())
-                .unwrap_or(FontSpec::Name("Arial".to_string())),
-            config_dir,
-        );
-        let mono_font = absolutise_font(
-            pick!(mono_font)
-                .or_else(|| self.defaults.mono_font.clone())
-                .unwrap_or(FontSpec::Name("DejaVu Sans Mono".to_string())),
-            config_dir,
-        );
-        let output_dir = pick!(output_dir)
-            .or_else(|| self.defaults.output_dir.clone())
-            .map(|s| config_dir.join(s));
-        let template = pick!(template)
-            .or_else(|| self.defaults.template.clone())
-            .map(|t| config_dir.join(t));
+        let colors = Colors {
+            primary: resolve_str!(chain, d, colors.primary, COLOR_PRIMARY),
+            text: resolve_str!(chain, d, colors.text, COLOR_TEXT),
+            heading: resolve_str!(chain, d, colors.heading, COLOR_HEADING),
+            link: resolve_str!(chain, d, colors.link, COLOR_LINK),
+            rule: resolve_str!(chain, d, colors.rule, COLOR_RULE),
+            header_label: resolve_str!(chain, d, colors.header_label, COLOR_HEADER_LABEL),
+            code_fill: resolve_str!(chain, d, colors.code_fill, COLOR_CODE_FILL),
+            code_border: resolve_str!(chain, d, colors.code_border, COLOR_CODE_BORDER),
+            code_inline_fill: resolve_str!(
+                chain, d, colors.code_inline_fill, COLOR_CODE_INLINE_FILL
+            ),
+            quote_fill: resolve_str!(chain, d, colors.quote_fill, COLOR_QUOTE_FILL),
+            quote_border: resolve_str!(chain, d, colors.quote_border, COLOR_QUOTE_BORDER),
+            table_stroke: resolve_str!(chain, d, colors.table_stroke, COLOR_TABLE_STROKE),
+            table_alt_fill: resolve_str!(chain, d, colors.table_alt_fill, COLOR_TABLE_ALT_FILL),
+        };
 
-        // Merge custom vars: defaults → root → ... → leaf (later overrides earlier).
-        let mut vars: BTreeMap<String, toml::Value> = self.defaults.vars.clone();
+        let sizes = Sizes {
+            body: resolve_str!(chain, d, sizes.body, SIZE_BODY),
+            code: resolve_str!(chain, d, sizes.code, SIZE_CODE),
+            top_margin: resolve_str!(chain, d, sizes.top_margin, SIZE_TOP_MARGIN),
+            side_margin: resolve_str!(chain, d, sizes.side_margin, SIZE_SIDE_MARGIN),
+            bottom_margin: resolve_str!(chain, d, sizes.bottom_margin, SIZE_BOTTOM_MARGIN),
+            head_height: resolve_str!(chain, d, sizes.head_height, SIZE_HEAD_HEIGHT),
+            logo_height: resolve_str!(chain, d, sizes.logo_height, SIZE_LOGO_HEIGHT),
+            par_leading: resolve_str!(chain, d, sizes.par_leading, SIZE_PAR_LEADING),
+            par_spacing: resolve_str!(chain, d, sizes.par_spacing, SIZE_PAR_SPACING),
+            list_indent: resolve_str!(chain, d, sizes.list_indent, SIZE_LIST_INDENT),
+            list_spacing: resolve_str!(chain, d, sizes.list_spacing, SIZE_LIST_SPACING),
+            heading_above: resolve_str!(chain, d, sizes.heading_above, SIZE_HEADING_ABOVE),
+            heading_below: resolve_str!(chain, d, sizes.heading_below, SIZE_HEADING_BELOW),
+            h1: resolve_str!(chain, d, sizes.h1, SIZE_H1),
+            h2: resolve_str!(chain, d, sizes.h2, SIZE_H2),
+            h3: resolve_str!(chain, d, sizes.h3, SIZE_H3),
+            h4: resolve_str!(chain, d, sizes.h4, SIZE_H4),
+        };
+
+        let fonts = Fonts {
+            main: absolutise_font(resolve_font!(chain, d, fonts.main, FONT_MAIN), config_dir),
+            mono: absolutise_font(resolve_font!(chain, d, fonts.mono, FONT_MONO), config_dir),
+        };
+
+        let layout = Layout {
+            logo: chain
+                .iter()
+                .find_map(|p| p.layout.logo.clone())
+                .or_else(|| d.layout.logo.clone())
+                .map(|l| config_dir.join(l)),
+            header_text: resolve_str!(chain, d, layout.header_text, HEADER_TEXT),
+            template: chain
+                .iter()
+                .find_map(|p| p.layout.template.clone())
+                .or_else(|| d.layout.template.clone())
+                .map(|t| config_dir.join(t)),
+            output_dir: chain
+                .iter()
+                .find_map(|p| p.layout.output_dir.clone())
+                .or_else(|| d.layout.output_dir.clone())
+                .map(|s| config_dir.join(s)),
+        };
+
+        // Merge custom vars: defaults → root → ... → leaf.
+        let mut vars: BTreeMap<String, toml::Value> = d.vars.clone();
         for p in chain.iter().rev() {
             for (k, v) in &p.vars {
                 vars.insert(k.clone(), v.clone());
             }
         }
 
-        ResolvedProfile {
+        let mut profile = ResolvedProfile {
             name: leaf.name.clone(),
-            display_name: pick!(display_name).unwrap_or_else(|| leaf.name.clone()),
-            primary_color: pick!(primary_color).unwrap_or_else(|| "#000000".to_string()),
-            text_color: pick!(text_color).unwrap_or_else(|| "#000000".to_string()),
-            author: pick!(author).unwrap_or_default(),
-            institute: pick!(institute).unwrap_or_default(),
-            email: pick!(email).unwrap_or_default(),
-            logo: pick!(logo).map(|l| config_dir.join(l)),
-            logo_height: pick!(logo_height).unwrap_or_else(|| "1cm".to_string()),
-            header_text: pick!(header_text).unwrap_or_default(),
-            header_text_color: pick!(header_text_color).unwrap_or_else(|| "#000000".to_string()),
-            main_font,
-            mono_font,
-            template,
-            output_dir,
+            identity,
+            colors,
+            sizes,
+            fonts,
+            layout,
             config_dir: config_dir.to_path_buf(),
-            top_margin: pick!(top_margin)
-                .or_else(|| self.defaults.top_margin.clone())
-                .unwrap_or_else(|| "3cm".to_string()),
-            head_height: pick!(head_height)
-                .or_else(|| self.defaults.head_height.clone())
-                .unwrap_or_else(|| "1.3cm".to_string()),
             vars,
-        }
+        };
+        resolve_variable_refs(&mut profile);
+        profile
     }
 }
 
-impl ResolvedProfile {
-    /// Apply a flat set of overrides (e.g. front-matter) on top of this profile.
-    /// Known keys override the matching profile field; unknown keys go into `vars`.
-    pub(crate) fn with_overrides(mut self, overrides: &BTreeMap<String, toml::Value>) -> Self {
-        use toml::Value;
-        fn as_str(v: &Value) -> Option<String> {
-            match v {
-                Value::String(s) => Some(s.clone()),
-                Value::Integer(i) => Some(i.to_string()),
-                Value::Float(f) => Some(f.to_string()),
-                Value::Boolean(b) => Some(b.to_string()),
-                _ => None,
+fn absolutise_font(spec: FontSpec, config_dir: &Path) -> FontSpec {
+    match spec {
+        FontSpec::Path { path } => FontSpec::Path {
+            path: config_dir.join(&path).to_string_lossy().into_owned(),
+        },
+        other => other,
+    }
+}
+
+// ═══ $section.field variable resolution ═════════════════════════════════════
+
+/// Build a `(path, getter, setter)` table for every string-typed field, then
+/// resolve `$section.field` references via fixed-point iteration with cycle
+/// detection. Variables that fail to resolve keep their literal `$...` value.
+fn resolve_variable_refs(profile: &mut ResolvedProfile) {
+    // Flat snapshot of every resolvable path → current value.
+    macro_rules! collect {
+        ($($section:ident.$field:ident),* $(,)?) => {{
+            let mut map = std::collections::HashMap::new();
+            $(
+                map.insert(
+                    concat!(stringify!($section), ".", stringify!($field)).to_string(),
+                    profile.$section.$field.clone(),
+                );
+            )*
+            map
+        }};
+    }
+
+    macro_rules! apply {
+        ($map:expr, $($section:ident.$field:ident),* $(,)?) => {
+            $(
+                if let Some(v) = $map.get(concat!(stringify!($section), ".", stringify!($field))) {
+                    profile.$section.$field = v.clone();
+                }
+            )*
+        };
+    }
+
+    let mut map = collect!(
+        identity.display_name, identity.author, identity.institute, identity.email,
+        colors.primary, colors.text, colors.heading, colors.link, colors.rule,
+        colors.header_label, colors.code_fill, colors.code_border, colors.code_inline_fill,
+        colors.quote_fill, colors.quote_border, colors.table_stroke, colors.table_alt_fill,
+        sizes.body, sizes.code, sizes.top_margin, sizes.side_margin, sizes.bottom_margin,
+        sizes.head_height, sizes.logo_height, sizes.par_leading, sizes.par_spacing,
+        sizes.list_indent, sizes.list_spacing, sizes.heading_above, sizes.heading_below,
+        sizes.h1, sizes.h2, sizes.h3, sizes.h4,
+        layout.header_text,
+    );
+
+    // Up to N passes of substitution. Each pass replaces every `$path` value
+    // for which `path` resolves to a non-`$`-prefixed value. Stops early
+    // when a pass changes nothing.
+    for _ in 0..16 {
+        let mut changed = false;
+        let snapshot = map.clone();
+        for (_, value) in map.iter_mut() {
+            if let Some(target) = value.strip_prefix('$')
+                && let Some(resolved) = snapshot.get(target)
+                && !resolved.starts_with('$')
+            {
+                *value = resolved.clone();
+                changed = true;
             }
         }
+        if !changed {
+            break;
+        }
+    }
 
-        macro_rules! string_fields {
-            ($($field:ident),* $(,)?) => {
-                |k: &str, v: &Value, this: &mut ResolvedProfile| -> bool {
-                    match k {
-                        $(stringify!($field) => {
-                            if let Some(s) = as_str(v) { this.$field = s; }
-                            true
-                        })*
-                        _ => false,
+    apply!(map,
+        identity.display_name, identity.author, identity.institute, identity.email,
+        colors.primary, colors.text, colors.heading, colors.link, colors.rule,
+        colors.header_label, colors.code_fill, colors.code_border, colors.code_inline_fill,
+        colors.quote_fill, colors.quote_border, colors.table_stroke, colors.table_alt_fill,
+        sizes.body, sizes.code, sizes.top_margin, sizes.side_margin, sizes.bottom_margin,
+        sizes.head_height, sizes.logo_height, sizes.par_leading, sizes.par_spacing,
+        sizes.list_indent, sizes.list_spacing, sizes.heading_above, sizes.heading_below,
+        sizes.h1, sizes.h2, sizes.h3, sizes.h4,
+        layout.header_text,
+    );
+}
+
+// ═══ Front-matter overrides ═════════════════════════════════════════════════
+
+impl ResolvedProfile {
+    /// Apply a parsed front-matter Profile-shape on top of this resolved profile.
+    /// Any field present in `overrides` replaces the matching resolved field.
+    /// Custom vars merge over existing ones; `$var` references are re-resolved.
+    pub(crate) fn with_overrides(mut self, overrides: &Profile) -> Self {
+        macro_rules! merge_str {
+            ($($section:ident.$field:ident),* $(,)?) => {
+                $(
+                    if let Some(v) = &overrides.$section.$field {
+                        self.$section.$field = v.clone();
                     }
-                }
+                )*
             };
         }
-        let try_set = string_fields!(
-            display_name, primary_color, text_color, author, institute, email,
-            logo_height, header_text, header_text_color, top_margin, head_height,
+        merge_str!(
+            identity.display_name, identity.author, identity.institute, identity.email,
+            colors.primary, colors.text, colors.heading, colors.link, colors.rule,
+            colors.header_label, colors.code_fill, colors.code_border, colors.code_inline_fill,
+            colors.quote_fill, colors.quote_border, colors.table_stroke, colors.table_alt_fill,
+            sizes.body, sizes.code, sizes.top_margin, sizes.side_margin, sizes.bottom_margin,
+            sizes.head_height, sizes.logo_height, sizes.par_leading, sizes.par_spacing,
+            sizes.list_indent, sizes.list_spacing, sizes.heading_above, sizes.heading_below,
+            sizes.h1, sizes.h2, sizes.h3, sizes.h4,
+            layout.header_text,
         );
-
-        for (k, v) in overrides {
-            if try_set(k, v, &mut self) {
-                continue;
-            }
-            if k == "logo" {
-                if let Some(s) = as_str(v) {
-                    self.logo = Some(self.config_dir.join(s));
-                }
-                continue;
-            }
+        if let Some(spec) = &overrides.fonts.main {
+            self.fonts.main = absolutise_font(spec.clone(), &self.config_dir);
+        }
+        if let Some(spec) = &overrides.fonts.mono {
+            self.fonts.mono = absolutise_font(spec.clone(), &self.config_dir);
+        }
+        if let Some(logo) = &overrides.layout.logo {
+            self.layout.logo = Some(self.config_dir.join(logo));
+        }
+        if let Some(t) = &overrides.layout.template {
+            self.layout.template = Some(self.config_dir.join(t));
+        }
+        if let Some(o) = &overrides.layout.output_dir {
+            self.layout.output_dir = Some(self.config_dir.join(o));
+        }
+        for (k, v) in &overrides.vars {
             self.vars.insert(k.clone(), v.clone());
         }
+        resolve_variable_refs(&mut self);
         self
     }
 }
