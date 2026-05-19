@@ -63,13 +63,13 @@ irm https://raw.githubusercontent.com/LuMiSxh/typos/main/install.ps1 | iex
 
 ### Manual Download
 
-| Platform | Archive |
-|---|---|
-| Linux x86_64 | `typos-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux ARM64 | `typos-aarch64-unknown-linux-gnu.tar.gz` |
-| macOS x86_64 | `typos-x86_64-apple-darwin.tar.gz` |
-| macOS Apple Silicon | `typos-aarch64-apple-darwin.tar.gz` |
-| Windows x86_64 | `typos-x86_64-pc-windows-msvc.zip` |
+| Platform            | Archive                                  |
+| ------------------- | ---------------------------------------- |
+| Linux x86_64        | `typos-x86_64-unknown-linux-gnu.tar.gz`  |
+| Linux ARM64         | `typos-aarch64-unknown-linux-gnu.tar.gz` |
+| macOS x86_64        | `typos-x86_64-apple-darwin.tar.gz`       |
+| macOS Apple Silicon | `typos-aarch64-apple-darwin.tar.gz`      |
+| Windows x86_64      | `typos-x86_64-pc-windows-msvc.zip`       |
 
 ### From Source
 
@@ -128,6 +128,43 @@ Unknown front-matter keys are exposed to your Typst template as `typos-<key>` va
 
 ---
 
+## Math in Markdown
+
+typos uses **Typst math syntax** — not LaTeX. The delimiters follow comrak's `math_dollars` extension:
+
+| Mode            | Syntax           | Typst output     |
+| --------------- | ---------------- | ---------------- |
+| Inline          | `$alpha + beta$` | `$alpha + beta$` |
+| Display (block) | `$$E = m c^2$$`  | `$ E = m c^2 $`  |
+
+**Critical:** there must be no space between `$` and the first character. `$ alpha $` is treated as literal text; `$alpha$` is math.
+
+### LaTeX → Typst cheatsheet
+
+| LaTeX                           | Typst                              |
+| ------------------------------- | ---------------------------------- |
+| `\alpha`, `\theta`, …           | `alpha`, `theta`, … (no backslash) |
+| `45^\circ`                      | `45 degree`                        |
+| `\cdot`                         | `dot`                              |
+| `\approx`                       | `approx`                           |
+| `\Delta`                        | `Delta`                            |
+| `\vec{x}`                       | `vec(x)`                           |
+| `\begin{pmatrix}…\end{pmatrix}` | `mat(a, b; c, d)`                  |
+| `\text{m}`                      | `"m"`                              |
+| `\to` / `\rightarrow`           | `->`                               |
+
+### Example
+
+```markdown
+The rotation matrix is $$R = mat(cos theta, -sin theta; sin theta, cos theta)$$.
+
+A point $vec(x, y)$ is transformed by multiplying with $R$.
+
+The result has magnitude $sqrt(x^2 + y^2) approx 1.41 "m"$.
+```
+
+---
+
 ## Configuration
 
 Run `typos init` to generate a `typos.toml`, then edit it:
@@ -167,13 +204,13 @@ For the full list of fields, font specification, length values, `extends` semant
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `typos convert <file> [--profile name,…\|all] [--open]` | Convert a single `.md`/`.typ` file |
-| `typos batch <dir> [--profile name,…\|all]` | Convert every `.md` and `.typ` under `dir` (recursive, parallel) |
-| `typos watch <path> [--profile name,…\|all]` | Watch a file or directory and re-convert on save |
-| `typos list` | List profiles from the nearest typos.toml |
-| `typos init` | Create a sample typos.toml |
+| Command                                                 | Description                                                      |
+| ------------------------------------------------------- | ---------------------------------------------------------------- |
+| `typos convert <file> [--profile name,…\|all] [--open]` | Convert a single `.md`/`.typ` file                               |
+| `typos batch <dir> [--profile name,…\|all]`             | Convert every `.md` and `.typ` under `dir` (recursive, parallel) |
+| `typos watch <path> [--profile name,…\|all]`            | Watch a file or directory and re-convert on save                 |
+| `typos list`                                            | List profiles from the nearest typos.toml                        |
+| `typos init`                                            | Create a sample typos.toml                                       |
 
 ---
 
