@@ -2,9 +2,9 @@
 
 # typos
 
-**Self-contained Markdown & Typst → branded PDF converter**
+**A self-contained Markdown & Typst to branded PDF converter**
 
-Turn Markdown or Typst files into beautifully branded PDFs — no LaTeX, no Pandoc, no external tools.
+Turn Markdown or Typst files into branded PDFs — without needing LaTeX or Pandoc.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/release/LuMiSxh/typos)](https://github.com/LuMiSxh/typos/releases)
@@ -29,21 +29,21 @@ graph LR
     style F fill:#4a9eff,color:#fff
 ```
 
-Define your branding (colors, logo, name, fonts) in `typos.toml` as profiles. Run `typos convert`. Get a PDF.
+Define your layout and metadata (colors, logo, author name, fonts) in `typos.toml` under distinct profiles. Run `typos convert` to generate your PDF.
 
 ## Features
 
-- **Self-contained**: single binary, zero external dependencies — no Pandoc, no LaTeX, no Node
-- **Markdown _or_ Typst input**: `.md` files are converted; `.typ` files pass straight through to the template
-- **Native math**: `$alpha$`, `$->$`, `$$E = mc^2$$` render as real Typst math, not literal text
-- **Bundled fonts**: ships with Libertinus Serif + DejaVu Sans Mono + NewCM Math — identical output on every machine
-- **Multiple profiles** with `extends` inheritance — share common settings, override per brand
-- **Per-document overrides**: TOML front-matter at the top of a file overrides profile fields just for that file
-- **Watch mode**: `typos watch path` rebuilds on every save
-- **Parallel batch**: `typos batch dir` converts a whole tree in parallel
-- **Interactive mode**: run `typos` with no arguments for a guided flow
-- **Custom templates**: replace the built-in layout per-profile or globally
-- **Cross-platform**: macOS, Linux, Windows
+- **Self-contained**: A single binary with no external dependencies (no Pandoc, LaTeX, or Node required).
+- **Flexible inputs**: Write in Markdown (`.md`) or pass Typst (`.typ`) files straight through to the template.
+- **Native math support**: Delimiters like `$alpha$` or `$$E = mc^2$$` render as native Typst math rather than plain text.
+- **Bundled fonts**: Includes Libertinus Serif, DejaVu Sans Mono, and NewCM Math so documents render identically on any machine.
+- **Multiple profiles**: Inherit and share common settings between profiles using the `extends` property.
+- **Per-document overrides**: Use TOML front-matter at the top of a file to override specific profile settings just for that document.
+- **Watch mode**: Automatically rebuilds PDFs on save using `typos watch <path>`.
+- **Batch conversion**: Convert entire directories in parallel with `typos batch <dir>`.
+- **Interactive mode**: Run `typos` with no arguments for a step-by-step CLI prompt.
+- **Custom templates**: Use your own Typst layout per-profile or globally.
+- **Cross-platform**: Support for macOS, Linux, and Windows.
 
 ---
 
@@ -111,7 +111,7 @@ typos
 
 ### Per-document overrides via front-matter
 
-Any `.md` or `.typ` file can start with a TOML front-matter block. The values override profile fields just for that document:
+Any `.md` or `.typ` file can start with a TOML front-matter block. These values override profile fields just for that document:
 
 ```markdown
 +++
@@ -130,14 +130,14 @@ Unknown front-matter keys are exposed to your Typst template as `typos-<key>` va
 
 ## Math in Markdown
 
-typos uses **Typst math syntax** — not LaTeX. The delimiters follow comrak's `math_dollars` extension:
+typos uses **Typst math syntax** instead of LaTeX. Delimiters follow comrak's standard `math_dollars` extension:
 
 | Mode            | Syntax           | Typst output     |
 | --------------- | ---------------- | ---------------- |
 | Inline          | `$alpha + beta$` | `$alpha + beta$` |
 | Display (block) | `$$E = m c^2$$`  | `$ E = m c^2 $`  |
 
-**Critical:** there must be no space between `$` and the first character. `$ alpha $` is treated as literal text; `$alpha$` is math.
+**Note:** Avoid putting spaces between the dollar signs and the characters. For example, `$ alpha $` is treated as literal text, while `$alpha$` is parsed as math.
 
 ### LaTeX → Typst cheatsheet
 
@@ -196,7 +196,7 @@ author = "John Doe"
 email  = "john@acme.com"
 ```
 
-Every field is optional. Anything you don't set uses the built-in default. Use `$section.field` anywhere to reference another field from the same profile.
+Every configuration field is optional. Anything left unset falls back to the built-in default. You can reference other fields in the same profile using the `$section.field` syntax.
 
 For the full list of fields, font specification, length values, `extends` semantics, custom variables (`vars`), front-matter, and how to write a custom Typst template, see **[CONFIGURATION.md](CONFIGURATION.md)**.
 
@@ -234,7 +234,7 @@ MIT — see [LICENSE](LICENSE).
 
 <div align="center">
 
-**Made with passion by LuMiSxh**
+**An open-source project by LuMiSxh**
 
 [GitHub](https://github.com/LuMiSxh/typos) • [Issues](https://github.com/LuMiSxh/typos/issues) • [Releases](https://github.com/LuMiSxh/typos/releases)
 
