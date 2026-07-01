@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO="LuMiSxh/typos"
 INSTALL_DIR="${TYPOS_INSTALL_DIR:-$HOME/.local/bin}"
+INSTALL_SCOPE="${TYPOS_INSTALL_SCOPE:-user}"
 
 main() {
     os="$(detect_os)"
@@ -34,11 +35,50 @@ main() {
     chmod +x "$INSTALL_DIR/typos"
     say "installed typos to ${INSTALL_DIR}/typos"
 
-    if ! echo "$PATH" | tr ':' '\n' | grep -qx "$INSTALL_DIR"; then
-        say ""
-        say "add to your PATH:"
-        say "  export PATH=\"${INSTALL_DIR}:\$PATH\""
+    add_to_path
+}
+
+# Adds $INSTALL_DIR to PATH, either for the current user (default, appends to
+# the shell rc file) or system-wide (writes /etc/profile.d/typos.sh, needs
+# root). Choose with TYPOS_INSTALL_SCOPE=user|system.
+add_to_path() {
+    if echo "$PATH" | tr ':' '\n' | grep -qx "$INSTALL_DIR"; then
+        return
     fi
+
+    line="export PATH=\"${INSTALL_DIR}:\$PATH\""
+
+    case "$INSTALL_SCOPE" in
+        system)
+            profile_file="/etc/profile.d/typos.sh"
+            if [ -f "$profile_file" ] && grep -qF "$INSTALL_DIR" "$profile_file"; then
+                return
+            fi
+            if [ -w /etc/profile.d ] || [ "$(id -u)" = "0" ]; then
+                printf '%s\n' "$line" > "$profile_file"
+                say "added ${INSTALL_DIR} to system-wide PATH via ${profile_file}"
+            elif command -v sudo >/dev/null 2>&1; then
+                printf '%s\n' "$line" | sudo tee "$profile_file" >/dev/null
+                say "added ${INSTALL_DIR} to system-wide PATH via ${profile_file} (sudo)"
+            else
+                say ""
+                say "could not write ${profile_file} (need root) — add manually:"
+                say "  $line"
+            fi
+            ;;
+        *)
+            rc_file="$HOME/.profile"
+            case "$(basename "${SHELL:-}")" in
+                zsh)  rc_file="$HOME/.zshrc" ;;
+                bash) rc_file="$HOME/.bashrc" ;;
+            esac
+            if [ -f "$rc_file" ] && grep -qF "$INSTALL_DIR" "$rc_file"; then
+                return
+            fi
+            printf '\n# added by typos installer\n%s\n' "$line" >> "$rc_file"
+            say "added ${INSTALL_DIR} to PATH in ${rc_file} (restart your shell or run: source ${rc_file})"
+            ;;
+    esac
 }
 
 detect_os() {

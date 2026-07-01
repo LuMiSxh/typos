@@ -7,6 +7,20 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-01
+
+### Added
+
+- **Installers add `typos` to `PATH` automatically**: `install.sh` appends the install directory to your shell rc file (`.bashrc`/`.zshrc`/`.profile`), and `install.ps1` sets the `User` environment variable — no more manual `export`/`SetEnvironmentVariable` step. Set `TYPOS_INSTALL_SCOPE=system` (Unix, may need `sudo`) or `$env:TYPOS_INSTALL_SCOPE = "system"` (Windows, needs an elevated shell) to install for all users instead.
+
+### Fixed
+
+- **Windows: profile logo images always failed to load** (`typst compile error: file not found`). The logo path was embedded in the generated Typst source as a raw Windows path (e.g. `C:\Users\...\assets\logo.png`); Typst's virtual path resolution silently drops the drive letter, so the path it looked up never matched the path the file was preloaded under. Logo images are now referenced through a small portable virtual path instead of the OS-native absolute path, so lookup and resolution always agree.
+
+### Changed
+
+- **Upgraded to Typst 0.15** (`typst`, `typst-pdf`, `typst-library`, `typst-syntax`, `typst-assets`, `typst-timing`, plus the newly-added `typst-layout`). No user-facing behavior change; internal `World` implementation updated for the new fallible, string-based `VirtualPath`/`FileId` API and the `Duration`-based `today()` signature.
+
 ## [0.3.1] - 2026-05-16
 
 ### Added

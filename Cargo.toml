@@ -1,7 +1,7 @@
 [package]
 authors = ["LuMiSxh"]
 name = "typos"
-version = "0.3.1"
+version = "0.3.2"
 description = "Self-contained Markdown to branded PDF converter"
 edition = "2024"
 license = "MIT"
@@ -27,12 +27,13 @@ time = "0.3"
 mimalloc = { version = "0.1", default-features = false }
 
 # Typst — pin all to same version to avoid incompatibilities
-typst = "0.14"
-typst-pdf = "0.14"
-typst-assets = { version = "0.14", features = ["fonts"] }
-typst-library = "0.14"
-typst-syntax = "0.14"
-typst-timing = "0.14"
+typst = "0.15"
+typst-pdf = "0.15"
+typst-assets = { version = "0.15", features = ["fonts"] }
+typst-layout = "0.15"
+typst-library = "0.15"
+typst-syntax = "0.15"
+typst-timing = "0.15"
 
 [profile.release]
 panic = "abort"

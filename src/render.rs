@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use typst::layout::PagedDocument;
+use typst_layout::PagedDocument;
 use crate::config::ResolvedProfile;
 use crate::error::{Result, TyposError};
 use crate::font::{ResolvedFont, resolve as resolve_font};
@@ -24,7 +24,7 @@ pub(crate) fn render(typst_content: &str, profile: &ResolvedProfile) -> Result<V
         && logo_path.is_file()
     {
         let bytes = std::fs::read(logo_path)?;
-        files.insert(logo_path.to_string_lossy().to_string(), bytes);
+        files.insert(template::logo_virtual_path(logo_path), bytes);
     }
 
     let fonts = collect_fonts(extra_font_bytes);
@@ -40,7 +40,7 @@ fn compile_pdf(world: &TyposWorld) -> Result<Vec<u8>> {
             .map(|e| {
                 let mut s = e.message.to_string();
                 for hint in &e.hints {
-                    s.push_str(&format!(" (hint: {})", hint));
+                    s.push_str(&format!(" (hint: {})", hint.v));
                 }
                 s
             })

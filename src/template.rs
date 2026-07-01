@@ -1,6 +1,21 @@
+use std::path::Path;
 use crate::config::{FontSpec, ResolvedProfile};
 use crate::error::{Result, TyposError};
 use crate::defaults;
+
+/// Portable (forward-slash, no drive letter) virtual path used to reference
+/// the profile logo from the generated Typst source and to key the
+/// preloaded logo bytes in `TyposWorld`. Embedding the logo's raw OS path
+/// instead breaks on Windows: Typst's path resolution strips the drive
+/// letter (or, on newer Typst, rejects backslashes outright), so the
+/// `#image(...)` call and the preloaded file table would disagree on the
+/// file's location.
+pub(crate) fn logo_virtual_path(path: &Path) -> String {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some(ext) => format!("/typos-logo.{ext}"),
+        None => "/typos-logo".to_string(),
+    }
+}
 
 const DEFAULT_TEMPLATE: &str = include_str!("../assets/default.typ");
 
@@ -44,7 +59,7 @@ fn build_variable_block(p: &ResolvedProfile) -> String {
         &p.layout
             .logo
             .as_ref()
-            .map(|l| l.to_string_lossy().into_owned())
+            .map(|l| logo_virtual_path(l))
             .unwrap_or_default(),
     );
 

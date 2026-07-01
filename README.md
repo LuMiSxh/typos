@@ -61,6 +61,8 @@ curl -fsSL https://raw.githubusercontent.com/LuMiSxh/typos/main/install.sh | sh
 irm https://raw.githubusercontent.com/LuMiSxh/typos/main/install.ps1 | iex
 ```
 
+Both installers add `typos` to your `PATH` automatically (current user by default). For a system-wide install, set `TYPOS_INSTALL_SCOPE=system` (Unix, may need `sudo`) or `$env:TYPOS_INSTALL_SCOPE = "system"` (Windows, needs an elevated shell) before running the command above.
+
 ### Manual Download
 
 | Platform            | Archive                                  |

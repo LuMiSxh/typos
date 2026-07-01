@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use typst::LibraryExt;
 use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime};
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::foundations::{Bytes, Datetime, Duration};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::Library;
@@ -33,7 +33,8 @@ impl TyposWorld {
             .into_iter()
             .map(|(k, v)| (k, Bytes::new(v)))
             .collect();
-        let main_id = FileId::new(None, VirtualPath::new("main.typ"));
+        let main_vpath = VirtualPath::new("main.typ").expect("\"main.typ\" is a valid virtual path");
+        let main_id = RootedPath::new(VirtualRoot::Project, main_vpath).intern();
         let source = Source::new(main_id, source_text);
         Self {
             source,
@@ -63,36 +64,32 @@ impl typst::World for TyposWorld {
         if id == self.source.id() {
             return Ok(self.source.clone());
         }
-        Err(FileError::NotFound(
-            id.vpath().as_rooted_path().to_owned(),
-        ))
+        Err(FileError::NotFound(PathBuf::from(id.vpath().get_with_slash())))
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        let vpath = id.vpath().as_rooted_path();
-        let key = vpath.to_string_lossy().to_string();
-        if let Some(bytes) = self.files.get(&key) {
+        let vpath = id.vpath();
+        let key = vpath.get_with_slash();
+        if let Some(bytes) = self.files.get(key) {
             return Ok(bytes.clone());
         }
         // Try reading from filesystem relative to base_dir
-        let abs = self
-            .base_dir
-            .join(vpath.strip_prefix("/").unwrap_or(vpath));
-        if abs.is_file() {
-            return std::fs::read(&abs)
-                .map(Bytes::new)
-                .map_err(|_| FileError::NotFound(abs));
+        if let Ok(abs) = vpath.realize(&self.base_dir)
+            && abs.is_file()
+        {
+            return std::fs::read(&abs).map(Bytes::new).map_err(|_| FileError::NotFound(abs));
         }
-        Err(FileError::NotFound(vpath.to_owned()))
+        Err(FileError::NotFound(PathBuf::from(key)))
     }
 
     fn font(&self, index: usize) -> Option<Font> {
         self.fonts.get(index).cloned()
     }
 
-    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let offset_hours = offset.unwrap_or(0);
-        let utc_offset = time::UtcOffset::from_hms(offset_hours.try_into().ok()?, 0, 0).ok()?;
+    fn today(&self, offset: Option<Duration>) -> Option<Datetime> {
+        let offset: time::Duration = offset.map(Into::into).unwrap_or(time::Duration::ZERO);
+        let utc_offset =
+            time::UtcOffset::from_whole_seconds(offset.whole_seconds().try_into().ok()?).ok()?;
         let now = time::OffsetDateTime::now_utc().to_offset(utc_offset);
         Datetime::from_ymd(now.year(), now.month() as u8, now.day())
     }
